@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="vi">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Quản lý Sản phẩm - Virtual Streamer</title>
+        <link
+            href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+            rel="stylesheet"
+        />
+        <link
+            href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+            rel="stylesheet"
+        />
+        <style>
+            .product-card {
+                transition: transform 0.2s;
+            }
+            .product-card:hover {
+                transform: translateY(-2px);
+            }
+            .stats-card {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+            }
+            .low-stock {
+                border-left: 4px solid #dc3545;
+            }
+        </style>
+    </head>
+    <body class="bg-light">
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="/">
+                    <i class="fas fa-video"></i> Virtual Streamer
+                </a>
+                <div class="navbar-nav ms-auto">
+                    <a class="nav-link" href="/admin">Dashboard</a>
+                    <a class="nav-link" href="/products.html">Sản phẩm</a>
+                </div>
+            </div>
+        </nav>
+
+        <div class="container mt-4">
+            <!-- Header & Stats -->
+            <div class="row mb-4">
+                <div class="col-md-8">
+                    <h1><i class="fas fa-box"></i> Quản lý Sản phẩm</h1>
+                </div>
+                <div class="col-md-4 text-end">
+                    <button class="btn btn-primary" onclick="showCreateModal()">
+                        <i class="fas fa-plus"></i> Thêm sản phẩm
+                    </button>
+                    <button class="btn btn-info" onclick="loadStats()">
+                        <i class="fas fa-chart-bar"></i> Thống kê
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <input
+                                type="text"
+                                class="form-control"
+                                id="searchInput"
+                                placeholder="Tìm kiếm sản phẩm..."
+                            />
+                        </div>
+                        <div class="col-md-2">
+                            <select class="form-select" id="categoryFilter">
+                                <option value="">Tất cả danh mục</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <input
+                                type="number"
+                                class="form-control"
+                                id="minPrice"
+                                placeholder="Giá tối thiểu"
+                            />
+                        </div>
+                        <div class="col-md-2">
+                            <input
+                                type="number"
+                                class="form-control"
+                                id="maxPrice"
+                                placeholder="Giá tối đa"
+                            />
+                        </div>
+                        <div class="col-md-2">
+                            <div class="form-check">
+                                <input
+                                    class="form-check-input"
+                                    type="checkbox"
+                                    id="showInactive"
+                                />
+                                <label
+                                    class="form-check-label"
+                                    for="showInactive"
+                                >
+                                    Hiện sản phẩm ẩn
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-1">
+                            <button
+                                class="btn btn-outline-primary"
+                                onclick="loadProducts()"
+                            >
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Products Grid -->
+            <div id="productsContainer" class="row">
+                <!-- Products will be loaded here -->
+            </div>
+
+            <!-- Pagination -->
+            <nav aria-label="Product pagination">
+                <ul class="pagination justify-content-center" id="pagination">
+                    <!-- Pagination will be generated here -->
+                </ul>
+            </nav>
+        </div>
+
+        <!-- Create/Edit Product Modal -->
+        <div class="modal fade" id="productModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="modalTitle">
+                            Thêm sản phẩm mới
+                        </h5>
+                        <button
+                            type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"
+                        ></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="productForm">
+                            <input type="hidden" id="productId" />
+                            <div class="mb-3">
+                                <label for="productName" class="form-label"
+                                    >Tên sản phẩm *</label
+                                >
+                                <input
+                                    type="text"
+                                    class="form-control"
+                                    id="productName"
+                                    required
+                                />
+                            </div>
+                            <div class="mb-3">
+                                <label
+                                    for="productDescription"
+                                    class="form-label"
+                                    >Mô tả</label
+                                >
+                                <textarea
+                                    class="form-control"
+                                    id="productDescription"
+                                    rows="3"
+                                ></textarea>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label
+                                            for="productPrice"
+                                            class="form-label"
+                                            >Giá *</label
+                                        >
+                                        <input
+                                            type="number"
+                                            class="form-control"
+                                            id="productPrice"
+                                            step="1000"
+                                            required
+                                        />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label
+                                            for="productStock"
+                                            class="form-label"
+                                            >Số lượng *</label
+                                        >
+                                        <input
+                                            type="number"
+                                            class="form-control"
+                                            id="productStock"
+                                            required
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="productCategory" class="form-label"
+                                    >Danh mục</label
+                                >
+                                <input
+                                    type="text"
+                                    class="form-control"
+                                    id="productCategory"
+                                />
+                            </div>
+                            <div class="mb-3">
+                                <label for="productImage" class="form-label"
+                                    >URL hình ảnh</label
+                                >
+                                <input
+                                    type="url"
+                                    class="form-control"
+                                    id="productImage"
+                                />
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button
+                            type="button"
+                            class="btn btn-secondary"
+                            data-bs-dismiss="modal"
+                        >
+                            Hủy
+                        </button>
+                        <button
+                            type="button"
+                            class="btn btn-primary"
+                            onclick="saveProduct()"
+                        >
+                            Lưu
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Modal -->
+        <div class="modal fade" id="statsModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Thống kê Sản phẩm</h5>
+                        <button
+                            type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"
+                        ></button>
+                    </div>
+                    <div class="modal-body" id="statsContent">
+                        <!-- Stats will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        <script src="/static/products.js"></script>
+    </body>
+</html>

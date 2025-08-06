@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="vi">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Virtual Streamer - Admin Dashboard</title>
+        <link
+            href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
+            rel="stylesheet"
+        />
+        <link
+            href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+            rel="stylesheet"
+        />
+        <style>
+            .sidebar {
+                min-height: 100vh;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            }
+            .main-content {
+                background-color: #f8f9fa;
+            }
+            .card {
+                border: none;
+                box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+                transition: all 0.3s ease;
+            }
+            .card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+            }
+            .product-card {
+                border-left: 4px solid #28a745;
+            }
+            .session-card {
+                border-left: 4px solid #007bff;
+            }
+            .status-badge {
+                font-size: 0.8rem;
+            }
+            .loading {
+                display: none;
+            }
+            .video-preview {
+                max-width: 200px;
+                max-height: 150px;
+                object-fit: cover;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container-fluid">
+            <div class="row">
+                <!-- Sidebar -->
+                <div class="col-md-3 col-lg-2 sidebar text-white p-0">
+                    <div class="p-3">
+                        <h4
+                            onclick="window.location.href='/'"
+                            style="cursor: pointer"
+                        >
+                            <i class="fas fa-video"></i> Virtual Streamer
+                        </h4>
+                        <hr />
+                        <nav class="nav flex-column">
+                            <a
+                                class="nav-link text-white active"
+                                href="#"
+                                onclick="showTab('dashboard')"
+                            >
+                                <i class="fas fa-tachometer-alt"></i> Dashboard
+                            </a>
+                            <a class="nav-link text-white" href="/products">
+                                <i class="fas fa-box"></i> Quản lý sản phẩm
+                            </a>
+                            <a
+                                class="nav-link text-white"
+                                href="#"
+                                onclick="showTab('sessions')"
+                            >
+                                <i class="fas fa-broadcast-tower"></i> Phiên
+                                live
+                            </a>
+                            <a
+                                class="nav-link text-white"
+                                href="#"
+                                onclick="showTab('templates')"
+                            >
+                                <i class="fas fa-file-alt"></i> Template script
+                            </a>
+                        </nav>
+                    </div>
+                </div>
+
+                <!-- Main Content -->
+                <div class="col-md-9 col-lg-10 main-content">
+                    <div class="container-fluid p-4">
+                        <!-- Dashboard Tab -->
+                        <div id="dashboard-tab" class="tab-content">
+                            <h2>
+                                <i class="fas fa-tachometer-alt"></i> Dashboard
+                            </h2>
+                            <div class="row mb-4">
+                                <div class="col-md-3 mb-3">
+                                    <div class="card text-center">
+                                        <div class="card-body">
+                                            <i
+                                                class="fas fa-box fa-2x text-success mb-2"
+                                            ></i>
+                                            <h5 class="card-title">Sản phẩm</h5>
+                                            <h3
+                                                class="text-success"
+                                                id="total-products"
+                                            >
+                                                0
+                                            </h3>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <div class="card text-center">
+                                        <div class="card-body">
+                                            <i
+                                                class="fas fa-broadcast-tower fa-2x text-primary mb-2"
+                                            ></i>
+                                            <h5 class="card-title">
+                                                Phiên live
+                                            </h5>
+                                            <h3
+                                                class="text-primary"
+                                                id="total-sessions"
+                                            >
+                                                0
+                                            </h3>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <div class="card text-center">
+                                        <div class="card-body">
+                                            <i
+                                                class="fas fa-play fa-2x text-warning mb-2"
+                                            ></i>
+                                            <h5 class="card-title">
+                                                Đang live
+                                            </h5>
+                                            <h3
+                                                class="text-warning"
+                                                id="live-sessions"
+                                            >
+                                                0
+                                            </h3>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <div class="card text-center">
+                                        <div class="card-body">
+                                            <i
+                                                class="fas fa-file-alt fa-2x text-info mb-2"
+                                            ></i>
+                                            <h5 class="card-title">
+                                                Templates
+                                            </h5>
+                                            <h3
+                                                class="text-info"
+                                                id="total-templates"
+                                            >
+                                                0
+                                            </h3>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5>
+                                                <i
+                                                    class="fas fa-chart-line"
+                                                ></i>
+                                                Phiên live gần đây
+                                            </h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div id="recent-sessions"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5>
+                                                <i class="fas fa-star"></i> Sản
+                                                phẩm nổi bật
+                                            </h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div id="featured-products"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sessions Tab -->
+                        <div
+                            id="sessions-tab"
+                            class="tab-content"
+                            style="display: none"
+                        >
+                            <div
+                                class="d-flex justify-content-between align-items-center mb-4"
+                            >
+                                <h2>
+                                    <i class="fas fa-broadcast-tower"></i> Quản
+                                    lý phiên live
+                                </h2>
+                                <button
+                                    class="btn btn-primary"
+                                    onclick="showCreateSessionModal()"
+                                >
+                                    <i class="fas fa-plus"></i> Tạo phiên live
+                                </button>
+                            </div>
+                            <div class="card">
+                                <div class="card-body">
+                                    <div id="sessions-list"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Templates Tab -->
+                        <div
+                            id="templates-tab"
+                            class="tab-content"
+                            style="display: none"
+                        >
+                            <div
+                                class="d-flex justify-content-between align-items-center mb-4"
+                            >
+                                <h2>
+                                    <i class="fas fa-file-alt"></i> Template
+                                    script
+                                </h2>
+                                <button
+                                    class="btn btn-primary"
+                                    onclick="showAddTemplateModal()"
+                                >
+                                    <i class="fas fa-plus"></i> Thêm template
+                                </button>
+                            </div>
+                            <div class="card">
+                                <div class="card-body">
+                                    <div id="templates-list"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modals -->
+        <!-- Create Session Modal -->
+        <div class="modal fade" id="createSessionModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Tạo phiên live mới</h5>
+                        <button
+                            type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"
+                        ></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="createSessionForm">
+                            <div class="mb-3">
+                                <label for="sessionTitle" class="form-label"
+                                    >Tiêu đề phiên live</label
+                                >
+                                <input
+                                    type="text"
+                                    class="form-control"
+                                    id="sessionTitle"
+                                    required
+                                />
+                            </div>
+                            <div class="mb-3">
+                                <label
+                                    for="sessionDescription"
+                                    class="form-label"
+                                    >Mô tả</label
+                                >
+                                <textarea
+                                    class="form-control"
+                                    id="sessionDescription"
+                                    rows="3"
+                                ></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label for="avatarVideo" class="form-label"
+                                    >Video avatar</label
+                                >
+                                <div class="row">
+                                    <div class="col-md-8">
+                                        <select
+                                            class="form-control mb-2"
+                                            id="avatarSelect"
+                                            onchange="selectAvatar()"
+                                        >
+                                            <option value="">
+                                                -- Chọn avatar có sẵn --
+                                            </option>
+                                        </select>
+                                        <div class="input-group">
+                                            <input
+                                                type="text"
+                                                class="form-control"
+                                                id="avatarVideo"
+                                                placeholder="Hoặc nhập đường dẫn video avatar"
+                                                required
+                                            />
+                                            <button
+                                                class="btn btn-outline-secondary"
+                                                type="button"
+                                                onclick="browseAvatar()"
+                                            >
+                                                <i
+                                                    class="fas fa-folder-open"
+                                                ></i>
+                                                Duyệt
+                                            </button>
+                                        </div>
+                                        <div class="mt-2">
+                                            <input
+                                                type="file"
+                                                class="form-control"
+                                                id="avatarUpload"
+                                                accept="video/*"
+                                                onchange="uploadAvatar()"
+                                                style="display: none"
+                                            />
+                                            <button
+                                                class="btn btn-outline-primary btn-sm"
+                                                type="button"
+                                                onclick="document.getElementById('avatarUpload').click()"
+                                            >
+                                                <i class="fas fa-upload"></i>
+                                                Upload Video Mới
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div
+                                            id="avatarPreview"
+                                            class="text-center"
+                                            style="display: none"
+                                        >
+                                            <video
+                                                id="previewVideo"
+                                                class="video-preview"
+                                                controls
+                                                muted
+                                                style="
+                                                    max-width: 100%;
+                                                    max-height: 150px;
+                                                "
+                                            >
+                                                Video preview không khả dụng
+                                            </video>
+                                            <div>
+                                                <small
+                                                    class="text-muted"
+                                                    id="videoInfo"
+                                                ></small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label"
+                                    >Chọn sản phẩm để bán</label
+                                >
+                                <div
+                                    id="productSelection"
+                                    class="border p-3 rounded"
+                                    style="max-height: 300px; overflow-y: auto"
+                                >
+                                    <div class="text-center">
+                                        <div
+                                            class="spinner-border spinner-border-sm text-primary"
+                                            role="status"
+                                        >
+                                            <span class="visually-hidden"
+                                                >Loading...</span
+                                            >
+                                        </div>
+                                        <p class="mt-2 mb-0">
+                                            Đang tải sản phẩm...
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button
+                            type="button"
+                            class="btn btn-secondary"
+                            data-bs-dismiss="modal"
+                        >
+                            Hủy
+                        </button>
+                        <button
+                            type="button"
+                            class="btn btn-primary"
+                            onclick="createSession()"
+                        >
+                            Tạo phiên live
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Modal -->
+        <div
+            class="modal fade"
+            id="loadingModal"
+            tabindex="-1"
+            data-bs-backdrop="static"
+        >
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-body text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-3" id="loadingMessage">Đang xử lý...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+        <script src="static/admin.js"></script>
+    </body>
+</html>

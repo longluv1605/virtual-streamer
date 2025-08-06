@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="vi">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Virtual Streamer System</title>
+        <link
+            href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
+            rel="stylesheet"
+        />
+        <link
+            href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+            rel="stylesheet"
+        />
+        <style>
+            body {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+                font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            }
+            .hero-section {
+                padding: 100px 0;
+                text-align: center;
+                color: white;
+            }
+            .feature-card {
+                background: rgba(255, 255, 255, 0.1);
+                backdrop-filter: blur(10px);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                border-radius: 15px;
+                padding: 30px;
+                margin-bottom: 30px;
+                transition: transform 0.3s ease;
+            }
+            .feature-card:hover {
+                transform: translateY(-10px);
+            }
+            .btn-custom {
+                background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+                border: none;
+                padding: 15px 30px;
+                font-size: 18px;
+                border-radius: 25px;
+                color: white;
+                text-decoration: none;
+                display: inline-block;
+                transition: all 0.3s ease;
+            }
+            .btn-custom:hover {
+                transform: translateY(-3px);
+                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+                color: white;
+            }
+            .stats-card {
+                background: rgba(255, 255, 255, 0.15);
+                backdrop-filter: blur(10px);
+                border-radius: 10px;
+                padding: 20px;
+                text-align: center;
+                margin-bottom: 20px;
+            }
+        </style>
+    </head>
+    <body>
+        <!-- Navigation -->
+        <nav
+            class="navbar navbar-expand-lg navbar-dark"
+            style="background: rgba(0, 0, 0, 0.1)"
+        >
+            <div class="container">
+                <a class="navbar-brand" href="#">
+                    <i class="fas fa-video"></i> Virtual Streamer
+                </a>
+                <button
+                    class="navbar-toggler"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#navbarNav"
+                >
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav ms-auto">
+                        <li class="nav-item">
+                            <a class="nav-link" href="#features">Tính năng</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#how-it-works"
+                                >Cách hoạt động</a
+                            >
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/admin" target="_blank">
+                                <i class="fas fa-cog"></i> Admin
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Hero Section -->
+        <section class="hero-section">
+            <div class="container">
+                <div class="row">
+                    <div class="col-lg-8 mx-auto">
+                        <h1 class="display-4 mb-4">
+                            <i class="fas fa-robot"></i> Virtual Streamer System
+                        </h1>
+                        <p class="lead mb-5">
+                            Hệ thống livestream bán hàng tự động với AI Virtual
+                            Human sử dụng MuseTalk. Tạo video giới thiệu sản
+                            phẩm chân thực với công nghệ lip-sync tiên tiến.
+                        </p>
+                        <a href="/admin" class="btn-custom">
+                            <i class="fas fa-rocket"></i> Bắt đầu ngay
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Stats Section -->
+        <section class="py-5">
+            <div class="container">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="stats-card text-white">
+                            <i class="fas fa-box fa-3x mb-3"></i>
+                            <h3 id="totalProducts">0</h3>
+                            <p>Sản phẩm</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stats-card text-white">
+                            <i class="fas fa-broadcast-tower fa-3x mb-3"></i>
+                            <h3 id="totalSessions">0</h3>
+                            <p>Phiên live</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stats-card text-white">
+                            <i class="fas fa-play fa-3x mb-3"></i>
+                            <h3 id="liveSessions">0</h3>
+                            <p>Đang live</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stats-card text-white">
+                            <i class="fas fa-comments fa-3x mb-3"></i>
+                            <h3 id="totalComments">0</h3>
+                            <p>Tương tác</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features Section -->
+        <section id="features" class="py-5">
+            <div class="container">
+                <h2 class="text-center text-white mb-5">Tính năng nổi bật</h2>
+                <div class="row">
+                    <div class="col-lg-4">
+                        <div class="feature-card text-white text-center">
+                            <i class="fas fa-robot fa-3x mb-3"></i>
+                            <h4>AI Virtual Human</h4>
+                            <p>
+                                Sử dụng MuseTalk để tạo video lip-sync chân
+                                thực, virtual human có thể nói về sản phẩm một
+                                cách tự nhiên.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="feature-card text-white text-center">
+                            <i class="fas fa-brain fa-3x mb-3"></i>
+                            <h4>LLM Script Generation</h4>
+                            <p>
+                                Tự động tạo script bán hàng bằng OpenAI/Gemini,
+                                tối ưu hóa nội dung cho từng sản phẩm.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="feature-card text-white text-center">
+                            <i class="fas fa-video fa-3x mb-3"></i>
+                            <h4>Real-time Streaming</h4>
+                            <p>
+                                Livestream trực tiếp với chat tương tác, Q&A, và
+                                điều khiển admin real-time.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="feature-card text-white text-center">
+                            <i class="fas fa-database fa-3x mb-3"></i>
+                            <h4>Quản lý sản phẩm</h4>
+                            <p>
+                                Hệ thống quản lý sản phẩm hoàn chỉnh với
+                                database, hình ảnh, giá cả và kho hàng.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="feature-card text-white text-center">
+                            <i class="fas fa-microphone fa-3x mb-3"></i>
+                            <h4>Text-to-Speech</h4>
+                            <p>
+                                Chuyển đổi script thành giọng nói tự nhiên với
+                                công nghệ TTS tiến tiến.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="feature-card text-white text-center">
+                            <i class="fas fa-cogs fa-3x mb-3"></i>
+                            <h4>Admin Dashboard</h4>
+                            <p>
+                                Giao diện quản trị trực quan, dễ sử dụng với đầy
+                                đủ tính năng điều khiển.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- How it works Section -->
+        <section id="how-it-works" class="py-5">
+            <div class="container">
+                <h2 class="text-center text-white mb-5">Cách hoạt động</h2>
+                <div class="row">
+                    <div class="col-lg-3 text-center text-white mb-4">
+                        <div class="feature-card">
+                            <div
+                                class="rounded-circle bg-primary d-inline-flex align-items-center justify-content-center mb-3"
+                                style="width: 60px; height: 60px"
+                            >
+                                <span class="fs-4 fw-bold">1</span>
+                            </div>
+                            <h5>Thêm sản phẩm</h5>
+                            <p>
+                                Admin thêm sản phẩm vào database với thông tin
+                                chi tiết, hình ảnh và giá cả.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 text-center text-white mb-4">
+                        <div class="feature-card">
+                            <div
+                                class="rounded-circle bg-success d-inline-flex align-items-center justify-content-center mb-3"
+                                style="width: 60px; height: 60px"
+                            >
+                                <span class="fs-4 fw-bold">2</span>
+                            </div>
+                            <h5>Tạo phiên live</h5>
+                            <p>
+                                Chọn sản phẩm để bán, LLM tự động tạo script và
+                                TTS chuyển thành audio.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 text-center text-white mb-4">
+                        <div class="feature-card">
+                            <div
+                                class="rounded-circle bg-warning d-inline-flex align-items-center justify-content-center mb-3"
+                                style="width: 60px; height: 60px"
+                            >
+                                <span class="fs-4 fw-bold">3</span>
+                            </div>
+                            <h5>Xử lý MuseTalk</h5>
+                            <p>
+                                MuseTalk tạo video lip-sync từ audio và avatar,
+                                chuẩn bị sẵn sàng cho live.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 text-center text-white mb-4">
+                        <div class="feature-card">
+                            <div
+                                class="rounded-circle bg-danger d-inline-flex align-items-center justify-content-center mb-3"
+                                style="width: 60px; height: 60px"
+                            >
+                                <span class="fs-4 fw-bold">4</span>
+                            </div>
+                            <h5>Livestream</h5>
+                            <p>
+                                Bắt đầu live, virtual human giới thiệu sản phẩm
+                                với khả năng tương tác real-time.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Live Sessions Section -->
+        <section class="py-5">
+            <div class="container">
+                <h2 class="text-center text-white mb-5">Phiên live hiện tại</h2>
+                <div id="liveSessions" class="row">
+                    <!-- Live sessions will be loaded here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="py-4 text-center text-white">
+            <div class="container">
+                <p>
+                    &copy; 2025 Virtual Streamer System. Powered by MuseTalk &
+                    AI Technology.
+                </p>
+            </div>
+        </footer>
+
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+        <script>
+            // API Base URL
+            const API_BASE = "/api";
+
+            // Load data on page load
+            document.addEventListener("DOMContentLoaded", function () {
+                loadStats();
+                loadLiveSessions();
+            });
+
+            // Load statistics
+            async function loadStats() {
+                try {
+                    const [productsRes, sessionsRes] = await Promise.all([
+                        fetch(`${API_BASE}/products/`),
+                        fetch(`${API_BASE}/sessions/`),
+                    ]);
+
+                    const products = await productsRes.json();
+                    const sessions = await sessionsRes.json();
+                    
+                    console.log(products)
+                    document.getElementById("totalProducts").textContent =
+                        products.total;
+                    document.getElementById("totalSessions").textContent =
+                        sessions.length;
+                    document.getElementById("liveSessions").textContent =
+                        sessions.filter((s) => s.status === "live").length;
+
+                    // For demo purposes, show a random comment count
+                    document.getElementById("totalComments").textContent =
+                        Math.floor(Math.random() * 500) + 100;
+                } catch (error) {
+                    console.error("Error loading stats:", error);
+                }
+            }
+
+            // Load live sessions
+            async function loadLiveSessions() {
+                try {
+                    const response = await fetch(`${API_BASE}/sessions/`);
+                    const sessions = await response.json();
+
+                    const liveSessionsContainer =
+                        document.getElementById("liveSessions");
+                    const liveSessions = sessions.filter(
+                        (s) => s.status === "live" || s.status === "ready"
+                    );
+
+                    if (liveSessions.length === 0) {
+                        liveSessionsContainer.innerHTML = `
+                        <div class="col-12">
+                            <div class="feature-card text-white text-center">
+                                <i class="fas fa-info-circle fa-2x mb-3"></i>
+                                <h5>Chưa có phiên live nào</h5>
+                                <p>Hãy tạo phiên live đầu tiên trong Admin Dashboard!</p>
+                                <a href="/admin" class="btn btn-primary">
+                                    <i class="fas fa-plus"></i> Tạo phiên live
+                                </a>
+                            </div>
+                        </div>
+                    `;
+                        return;
+                    }
+
+                    const html = liveSessions
+                        .map(
+                            (session) => `
+                    <div class="col-lg-6 mb-4">
+                        <div class="feature-card text-white">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <h5>${session.title}</h5>
+                                <span class="badge ${getStatusBadgeClass(
+                                    session.status
+                                )}">${getStatusText(session.status)}</span>
+                            </div>
+                            <p>${session.description || "Không có mô tả"}</p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">Tạo: ${formatDate(
+                                    session.created_at
+                                )}</small>
+                                ${
+                                    session.status === "live"
+                                        ? `<a href="/live/${session.id}" class="btn btn-success btn-sm" target="_blank">
+                                        <i class="fas fa-play"></i> Xem live
+                                    </a>`
+                                        : `<span class="text-muted">Chưa bắt đầu</span>`
+                                }
+                            </div>
+                        </div>
+                    </div>
+                `
+                        )
+                        .join("");
+
+                    liveSessionsContainer.innerHTML = html;
+                } catch (error) {
+                    console.error("Error loading live sessions:", error);
+                }
+            }
+
+            // Utility functions
+            function getStatusBadgeClass(status) {
+                const classes = {
+                    preparing: "bg-secondary",
+                    processing: "bg-warning",
+                    ready: "bg-info",
+                    live: "bg-success",
+                    completed: "bg-primary",
+                    error: "bg-danger",
+                };
+                return classes[status] || "bg-secondary";
+            }
+
+            function getStatusText(status) {
+                const texts = {
+                    preparing: "Chuẩn bị",
+                    processing: "Đang xử lý",
+                    ready: "Sẵn sàng",
+                    live: "Đang live",
+                    completed: "Hoàn thành",
+                    error: "Lỗi",
+                };
+                return texts[status] || status;
+            }
+
+            function formatDate(dateString) {
+                return new Date(dateString).toLocaleString("vi-VN");
+            }
+
+            // Auto refresh every 30 seconds
+            setInterval(() => {
+                loadStats();
+                loadLiveSessions();
+            }, 30000);
+        </script>
+    </body>
+</html>

@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="vi">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Virtual Streamer - Live Session</title>
+        <link
+            href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
+            rel="stylesheet"
+        />
+        <link
+            href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+            rel="stylesheet"
+        />
+        <style>
+            body {
+                background-color: #000;
+                color: #fff;
+            }
+            .video-container {
+                position: relative;
+                background-color: #222;
+                border-radius: 10px;
+                overflow: hidden;
+                width: 100%;
+                height: 40%;
+                
+                display: flex; /* cần thêm */
+                justify-content: center;
+                align-items: center;
+            }
+
+            .video-player {
+                width: auto;
+                height: 100%;
+                max-height: 70vh;
+            }
+            .chat-container {
+                background-color: #1a1a1a;
+                border-radius: 10px;
+                height: 70vh;
+                display: flex;
+                flex-direction: column;
+            }
+            .chat-messages {
+                flex: 1;
+                overflow-y: auto;
+                padding: 15px;
+            }
+            .chat-input {
+                border-top: 1px solid #333;
+                padding: 15px;
+            }
+            .message {
+                margin-bottom: 10px;
+                padding: 8px 12px;
+                border-radius: 8px;
+                background-color: #333;
+            }
+            .message.question {
+                background-color: #1e7e34;
+            }
+            .message.admin {
+                background-color: #0d6efd;
+            }
+            .product-info {
+                background-color: #1a1a1a;
+                border-radius: 10px;
+                padding: 20px;
+                margin-bottom: 20px;
+            }
+            .status-indicator {
+                display: inline-block;
+                width: 12px;
+                height: 12px;
+                border-radius: 50%;
+                margin-right: 8px;
+            }
+            .status-live {
+                background-color: #dc3545;
+                animation: pulse 2s infinite;
+            }
+            .status-ready {
+                background-color: #28a745;
+            }
+            .status-preparing {
+                background-color: #ffc107;
+            }
+            @keyframes pulse {
+                0% {
+                    opacity: 1;
+                }
+                50% {
+                    opacity: 0.5;
+                }
+                100% {
+                    opacity: 1;
+                }
+            }
+            .video-overlay {
+                position: absolute;
+                top: 10px;
+                left: 10px;
+                background-color: rgba(0, 0, 0, 0.7);
+                padding: 8px 12px;
+                border-radius: 6px;
+                font-size: 0.9rem;
+            }
+            .next-product {
+                background-color: #2d3436;
+                border-radius: 8px;
+                padding: 15px;
+                margin-top: 15px;
+            }
+            .progress-container {
+                background-color: #333;
+                border-radius: 10px;
+                padding: 15px;
+                margin-bottom: 20px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container-fluid p-3">
+            <div class="row">
+                <!-- Main Video Area -->
+                <div class="col-lg-8">
+                    <!-- Session Info -->
+                    <div
+                        class="d-flex justify-content-between align-items-center mb-3"
+                    >
+                        <h2 id="sessionTitle">Virtual Streamer Live</h2>
+                        <div>
+                            <span
+                                class="status-indicator"
+                                id="statusIndicator"
+                            ></span>
+                            <span id="statusText">Đang tải...</span>
+                        </div>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div
+                        class="progress-container"
+                        id="progressContainer"
+                        style="display: none"
+                    >
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Tiến độ phiên live</span>
+                            <span id="progressText">0/0</span>
+                        </div>
+                        <div class="progress">
+                            <div
+                                class="progress-bar"
+                                id="progressBar"
+                                role="progressbar"
+                                style="width: 0%"
+                            ></div>
+                        </div>
+                    </div>
+
+                    <!-- Video Container -->
+                    <div class="video-container">
+                        <video
+                            id="videoPlayer"
+                            class="video-player"
+                            controls
+                            autoplay
+                        >
+                            <source src="" type="video/mp4" />
+                            Trình duyệt của bạn không hỗ trợ video.
+                        </video>
+                        <div class="video-overlay" id="videoOverlay">
+                            <i class="fas fa-circle text-danger"></i> LIVE
+                        </div>
+                    </div>
+
+                    <!-- Current Product Info -->
+                    <div
+                        class="product-info"
+                        id="currentProductInfo"
+                        style="display: none"
+                    >
+                        <h4>Đang giới thiệu</h4>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <img
+                                    id="currentProductImage"
+                                    src=""
+                                    class="img-fluid rounded"
+                                    alt=""
+                                />
+                            </div>
+                            <div class="col-md-9">
+                                <h5 id="currentProductName"></h5>
+                                <p id="currentProductDescription"></p>
+                                <div
+                                    class="d-flex justify-content-between align-items-center"
+                                >
+                                    <h4
+                                        class="text-warning mb-0"
+                                        id="currentProductPrice"
+                                    ></h4>
+                                    <span
+                                        class="badge bg-success"
+                                        id="currentProductStock"
+                                    ></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Next Product Preview -->
+                    <div
+                        class="next-product"
+                        id="nextProductInfo"
+                        style="display: none"
+                    >
+                        <h6><i class="fas fa-clock"></i> Sản phẩm tiếp theo</h6>
+                        <div class="d-flex align-items-center">
+                            <img
+                                id="nextProductImage"
+                                src=""
+                                class="rounded me-3"
+                                style="
+                                    width: 60px;
+                                    height: 60px;
+                                    object-fit: cover;
+                                "
+                                alt=""
+                            />
+                            <div>
+                                <strong id="nextProductName"></strong><br />
+                                <small
+                                    class="text-muted"
+                                    id="nextProductPrice"
+                                ></small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chat Sidebar -->
+                <div class="col-lg-4">
+                    <!-- Q&A Management Panel (only shown for admin/host) -->
+                    <div
+                        class="card bg-dark mb-3"
+                        id="qaPanel"
+                        style="display: none"
+                    >
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-question-circle"></i>
+                                Quản lý câu hỏi
+                                <span
+                                    class="badge bg-warning ms-2"
+                                    id="questionCount"
+                                    >0</span
+                                >
+                            </h6>
+                        </div>
+                        <div
+                            class="card-body p-2"
+                            style="max-height: 300px; overflow-y: auto"
+                        >
+                            <div id="unansweredQuestions">
+                                <!-- Unanswered questions will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chat-container">
+                        <div class="border-bottom p-3">
+                            <h5>
+                                <i class="fas fa-comments"></i> Chat trực tiếp
+                            </h5>
+                            <small class="text-muted"
+                                >Hỏi đáp về sản phẩm</small
+                            >
+                        </div>
+
+                        <div class="chat-messages" id="chatMessages">
+                            <!-- Messages will be loaded here -->
+                        </div>
+
+                        <div class="chat-input">
+                            <form id="chatForm">
+                                <div class="input-group">
+                                    <input
+                                        type="text"
+                                        id="usernameInput"
+                                        class="form-control form-control-sm"
+                                        placeholder="Tên của bạn"
+                                        style="max-width: 120px"
+                                    />
+                                    <input
+                                        type="text"
+                                        id="messageInput"
+                                        class="form-control"
+                                        placeholder="Nhập tin nhắn..."
+                                    />
+                                    <button
+                                        class="btn btn-primary"
+                                        type="submit"
+                                    >
+                                        <i class="fas fa-paper-plane"></i>
+                                    </button>
+                                </div>
+                                <div class="form-check form-check-inline mt-2">
+                                    <input
+                                        class="form-check-input"
+                                        type="checkbox"
+                                        id="isQuestionCheck"
+                                    />
+                                    <label
+                                        class="form-check-label"
+                                        for="isQuestionCheck"
+                                    >
+                                        <small>Đây là câu hỏi</small>
+                                    </label>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Admin Panel (if admin) -->
+                    <div class="mt-3" id="adminPanel" style="display: none">
+                        <div class="card bg-dark">
+                            <div class="card-header">
+                                <h6>
+                                    <i class="fas fa-cogs"></i> Điều khiển Admin
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="d-grid gap-2">
+                                    <button
+                                        class="btn btn-success btn-sm"
+                                        id="startSessionBtn"
+                                        onclick="startSession()"
+                                    >
+                                        <i class="fas fa-play"></i> Bắt đầu
+                                    </button>
+                                    <button
+                                        class="btn btn-warning btn-sm"
+                                        id="pauseSessionBtn"
+                                        onclick="pauseSession()"
+                                        style="display: none"
+                                    >
+                                        <i class="fas fa-pause"></i> Tạm dừng
+                                    </button>
+                                    <button
+                                        class="btn btn-danger btn-sm"
+                                        id="stopSessionBtn"
+                                        onclick="stopSession()"
+                                        style="display: none"
+                                    >
+                                        <i class="fas fa-stop"></i> Dừng
+                                    </button>
+                                    <button
+                                        class="btn btn-info btn-sm"
+                                        onclick="nextProduct()"
+                                    >
+                                        <i class="fas fa-forward"></i> Sản phẩm
+                                        tiếp
+                                    </button>
+                                    <button
+                                        class="btn btn-secondary btn-sm"
+                                        onclick="showQuestions()"
+                                    >
+                                        <i class="fas fa-question-circle"></i>
+                                        Câu hỏi chưa trả lời
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Questions Modal -->
+        <div class="modal fade" id="questionsModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content bg-dark text-white">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Câu hỏi chưa trả lời</h5>
+                        <button
+                            type="button"
+                            class="btn-close btn-close-white"
+                            data-bs-dismiss="modal"
+                        ></button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="questionsList"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+        <script src="/static/live.js"></script>
+    </body>
+</html>
