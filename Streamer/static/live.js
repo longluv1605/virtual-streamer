@@ -359,7 +359,7 @@ async function autoAnswerPendingQuestions() {
 
     try {
         const response = await fetch(
-            `${API_BASE}/sessions/${sessionId}/auto-answer-question/${question.id}`,
+            `${API_BASE}/sessions/${sessionId}/comments/auto-answer-question/${question.id}`,
             {
                 method: "POST",
                 headers: {
@@ -584,7 +584,7 @@ function pauseSession() {
 async function showQuestions() {
     try {
         const response = await fetch(
-            `${API_BASE}/sessions/${sessionId}/questions`
+            `${API_BASE}/sessions/${sessionId}/comments/questions`
         );
         const questions = await response.json();
 
@@ -629,7 +629,7 @@ async function showQuestions() {
 async function markAnswered(commentId) {
     try {
         const response = await fetch(
-            `${API_BASE}/comments/${commentId}/answer`,
+            `${API_BASE}/sessions/${sessionId}/comments/${commentId}/answer`,
             {
                 method: "PUT",
             }
@@ -682,7 +682,7 @@ function showNotification(type, message) {
 async function loadUnansweredQuestions() {
     try {
         const response = await fetch(
-            `${API_BASE}/sessions/${sessionId}/questions/unanswered`
+            `${API_BASE}/sessions/${sessionId}/comments/questions/unanswered`
         );
         if (response.ok) {
             unansweredQuestions = await response.json();
@@ -745,7 +745,7 @@ async function answerQuestion(commentId) {
         showNotification("info", "Đang tạo video trả lời...");
 
         const response = await fetch(
-            `${API_BASE}/sessions/${sessionId}/answer-question/${commentId}`,
+            `${API_BASE}/sessions/${sessionId}/comments/answer-question/${commentId}`,
             {
                 method: "POST",
                 headers: {
