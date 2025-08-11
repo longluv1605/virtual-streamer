@@ -115,7 +115,7 @@ function updateSessionInfo() {
     }
 
     // Update admin buttons
-    updateAdminButtons();
+    // updateAdminButtons();
 }
 
 function updateProgressBar() {
@@ -134,28 +134,28 @@ function updateProgressBar() {
     }`;
 }
 
-function updateAdminButtons() {
-    const startBtn = document.getElementById("startSessionBtn");
-    const pauseBtn = document.getElementById("pauseSessionBtn");
-    const stopBtn = document.getElementById("stopSessionBtn");
+// function updateAdminButtons() {
+//     // const startBtn = document.getElementById("startSessionBtn");
+//     // const pauseBtn = document.getElementById("pauseSessionBtn");
+//     // const stopBtn = document.getElementById("stopSessionBtn");
 
-    switch (currentSession.status) {
-        case "ready":
-            startBtn.style.display = "block";
-            pauseBtn.style.display = "none";
-            stopBtn.style.display = "none";
-            break;
-        case "live":
-            startBtn.style.display = "none";
-            pauseBtn.style.display = "block";
-            stopBtn.style.display = "block";
-            break;
-        default:
-            startBtn.style.display = "none";
-            pauseBtn.style.display = "none";
-            stopBtn.style.display = "none";
-    }
-}
+//     switch (currentSession.status) {
+//         case "ready":
+//             startBtn.style.display = "block";
+//             pauseBtn.style.display = "none";
+//             stopBtn.style.display = "none";
+//             break;
+//         case "live":
+//             startBtn.style.display = "none";
+//             pauseBtn.style.display = "block";
+//             stopBtn.style.display = "block";
+//             break;
+//         default:
+//             startBtn.style.display = "none";
+//             pauseBtn.style.display = "none";
+//             stopBtn.style.display = "none";
+//     }
+// }
 
 // Live session functions
 function startLiveSession() {
@@ -876,13 +876,13 @@ function handleWebSocketMessage(data) {
                 }
             }
             break;
-        case "session_stopped":
-            if (data.session_id == sessionId) {
-                loadSession();
-                showNotification("info", "Phiên live đã kết thúc");
-                // Hide Q&A panel when session stops
-                document.getElementById("qaPanel").style.display = "none";
-            }
-            break;
+        // case "session_stopped":
+        //     if (data.session_id == sessionId) {
+        //         loadSession();
+        //         showNotification("info", "Phiên live đã kết thúc");
+        //         // Hide Q&A panel when session stops
+        //         document.getElementById("qaPanel").style.display = "none";
+        //     }
+        //     break;
     }
 }

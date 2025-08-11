@@ -5,3 +5,4 @@ MuseTalk
 *.mp3
 **__pycache__**
 *.db
+*test.py*
