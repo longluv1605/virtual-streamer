@@ -8,7 +8,7 @@ from sqlalchemy import (
     ForeignKey,
 )
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -36,6 +36,12 @@ class StreamSession(Base):
     start_time = Column(DateTime)
     end_time = Column(DateTime)
     created_at = Column(DateTime, default=func.now())
+    
+    for_stream = Column(Boolean, default=False)
+    wait_duration = Column(Integer, default=10)
+    
+    stream_fps = Column(Integer, default=25)
+    batch_size = Column(Integer, default=4)
 
     # Relationships
     avatar = relationship("Avatar", back_populates="stream_sessions")
@@ -71,6 +77,10 @@ class StreamSessionCreate(BaseModel):
     description: Optional[str] = None
     avatar_path: str  # Accept avatar path from filesystem
     product_ids: List[int]
+    for_stream: Optional[bool] = False
+    wait_duration: Optional[int] = 10
+    fps: Optional[int] = 25
+    batch_size: Optional[int] = 4
 
 
 class StreamSessionResponse(BaseModel):
@@ -83,9 +93,14 @@ class StreamSessionResponse(BaseModel):
     start_time: Optional[datetime]
     end_time: Optional[datetime]
     created_at: datetime
+    for_stream: Optional[bool]
+    wait_duration: Optional[int]
+    fps: Optional[int] = Field(alias="stream_fps")
+    batch_size: Optional[int]
 
     class Config:
         from_attributes = True
+        populate_by_name = True
 
 
 class StreamProductResponse(BaseModel):

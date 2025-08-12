@@ -50,6 +50,11 @@ class StreamProcessor:
             # Ensure avatar is prepared
             if not avatar.is_prepared:
                 print(f"Avatar {avatar.name} is not prepared...")
+                
+            if not session.for_stream:
+                print(f"Session is not realtime streaming...")
+                
+            print(f"Prepare session with {session.stream_fps} FPS and size {session.batch_size}")
 
             # Process each product
             for stream_product in stream_products:
@@ -58,6 +63,9 @@ class StreamProcessor:
                     default_template,
                     avatar,
                     session_id,
+                    session.for_stream,
+                    session.stream_fps,
+                    session.batch_size,
                     db_session,
                 )
 
@@ -216,6 +224,9 @@ Hãy trả lời:
         template: ScriptTemplate,
         avatar: Avatar,
         session_id: int,
+        for_stream: bool,
+        stream_fps: int,
+        batch_size: int,
         db_session,
     ):
         """Process individual stream product"""
@@ -233,20 +244,21 @@ Hãy trả lời:
             audio_filename = f"product_{session_id}_{product.id}"
             audio_path = await self.tts_service.text_to_speech(script, audio_filename)
 
-            # Generate video using avatar system
-            print(f"Generating video for {product.name} with avatar {avatar.name}...")
-            video_filename = f"output_{session_id}_{product.id}"
-            video_path = await self.musetalk_service.generate_video_with_avatar(
-                audio_path, avatar, session_id, product.id, video_filename
-            )
-
             # Update database
             update_data = {
                 "script_text": script,
                 "audio_path": audio_path,
-                "video_path": video_path,
                 "is_processed": True,
             }
+            
+            if not for_stream:
+                # Generate video using avatar system
+                print(f"Generating video for {product.name} with avatar {avatar.name}...")
+                video_filename = f"output_{session_id}_{product.id}"
+                video_path = await self.musetalk_service.generate_video_with_avatar(
+                    audio_path, stream_fps, batch_size, avatar, session_id, product.id, video_filename
+                )
+                update_data["video_path"] = video_path
 
             StreamSessionService.update_stream_product(
                 db_session, stream_product.id, update_data

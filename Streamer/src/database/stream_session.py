@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from src.models import StreamSession, StreamSessionCreate, StreamProduct
 from typing import List, Optional
 
+
 class StreamSessionService:
     @staticmethod
     def create_session(db: Session, session_data: StreamSessionCreate) -> StreamSession:
@@ -12,7 +13,7 @@ class StreamSessionService:
             print(f"Using avatar_path: {session_data.avatar_path}")
 
             # Get or create avatar from path
-            from src.services import AvatarService
+            from .avatar import AvatarService
 
             avatar = AvatarService.get_or_create_avatar(db, session_data.avatar_path)
             print(f"Avatar resolved: {avatar.name} (ID: {avatar.id})")
@@ -23,6 +24,11 @@ class StreamSessionService:
                 description=session_data.description,
                 avatar_id=avatar.id,
                 status="preparing",
+                # Add streaming settings
+                for_stream=session_data.for_stream,
+                wait_duration=session_data.wait_duration,
+                stream_fps=session_data.fps,
+                batch_size=session_data.batch_size,
             )
             db.add(db_session)
             db.commit()

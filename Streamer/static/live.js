@@ -253,7 +253,7 @@ function playProductVideo(streamProduct) {
             console.log(`Pending questions count: ${pendingQuestions.length}`);
 
             // Auto-answer any pending questions before moving to next product
-            autoAnswerPendingQuestions();
+            // autoAnswerPendingQuestions();
 
             setTimeout(() => {
                 nextProduct();
@@ -334,7 +334,7 @@ function restoreProductVideoHandler() {
         console.log(`Pending questions count: ${pendingQuestions.length}`);
 
         // Auto-answer any pending questions before moving to next product
-        autoAnswerPendingQuestions();
+        // autoAnswerPendingQuestions();
 
         setTimeout(() => {
             nextProduct();

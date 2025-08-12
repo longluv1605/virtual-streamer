@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 from src.models import Avatar
 
-from .avatar import AvatarService
+from ..database.avatar import AvatarService
 
 class MuseTalkService:
     """MuseTalk integration service"""
@@ -46,6 +46,8 @@ class MuseTalkService:
     async def generate_video_with_avatar(
         self,
         audio_path: str,
+        stream_fps: int, 
+        batch_size: int,
         avatar: Avatar,
         session_id: int,
         product_id: int,
@@ -80,9 +82,9 @@ class MuseTalkService:
                 import sys
 
                 # Convert paths to absolute paths
-                print(f"Processing avatar: {avatar.name} (ID: {avatar.id})")
-                print(f"Avatar path: {avatar.video_path}")
-                print(f"Original working directory: {original_cwd}")
+                # print(f"Processing avatar: {avatar.name} (ID: {avatar.id})")
+                # print(f"Avatar path: {avatar.video_path}")
+                # print(f"Original working directory: {original_cwd}")
 
                 # Fix audio path
                 if not os.path.isabs(audio_path):
@@ -178,9 +180,9 @@ class MuseTalkService:
                         "--inference_config",
                         config_path,
                         "--batch_size",
-                        "4",
+                        str(batch_size),
                         "--fps",
-                        "25",
+                        str(stream_fps),
                     ]
 
                     print(f"Command: {' '.join(cmd)}")
@@ -319,196 +321,3 @@ class MuseTalkService:
             except:
                 pass
             return None
-
-    async def generate_video(
-        self,
-        audio_path: str,
-        avatar_video_path: str,
-        output_filename: str,
-        bbox_shift: int = 0,
-    ) -> str:
-        """Legacy method - Generate lip-sync video using MuseTalk"""
-
-        output_path = self.output_dir / f"{output_filename}.mp4"
-
-        try:
-            # Import MuseTalk modules with proper path setup
-            import sys
-            import os
-
-            # Store original working directory
-            original_cwd = os.getcwd()
-
-            # Get absolute path to MuseTalk
-            musetalk_abs_path = os.path.abspath(str(self.musetalk_path))
-
-            # Change to MuseTalk directory (important for relative imports)
-            os.chdir(musetalk_abs_path)
-
-            # Add MuseTalk to Python path
-            if musetalk_abs_path not in sys.path:
-                sys.path.insert(0, musetalk_abs_path)
-
-            try:
-                import subprocess
-                import tempfile
-                import yaml
-                import sys
-
-                # Convert paths to absolute paths
-                print(f"Processing avatar path: {avatar_video_path}")
-                print(f"Original working directory: {original_cwd}")
-
-                # Fix audio path
-                if not os.path.isabs(audio_path):
-                    audio_abs_path = os.path.join(original_cwd, audio_path)
-                else:
-                    audio_abs_path = audio_path
-
-                # Fix avatar path
-                if avatar_video_path.startswith("/static/"):
-                    avatar_abs_path = os.path.join(
-                        original_cwd, avatar_video_path.lstrip("/")
-                    )
-                elif avatar_video_path.startswith("../MuseTalk/"):
-                    avatar_abs_path = os.path.abspath(avatar_video_path)
-                elif os.path.isabs(avatar_video_path):
-                    avatar_abs_path = avatar_video_path
-                else:
-                    avatar_abs_path = os.path.join(original_cwd, avatar_video_path)
-
-                # Verify files exist
-                if not os.path.exists(audio_abs_path):
-                    raise FileNotFoundError(f"Audio file not found: {audio_abs_path}")
-                if not os.path.exists(avatar_abs_path):
-                    raise FileNotFoundError(
-                        f"Avatar video not found: {avatar_abs_path}"
-                    )
-
-                print(f"Audio: {audio_abs_path}")
-                print(f"Avatar: {avatar_abs_path}")
-
-                # Create avatar ID
-                avatar_id = f"avatar_{output_filename}"
-
-                # Create temporary config for realtime inference
-                config_data = {
-                    avatar_id: {
-                        "preparation": True,
-                        "video_path": avatar_abs_path,
-                        "bbox_shift": bbox_shift,
-                        "audio_clips": {"0": audio_abs_path},
-                    }
-                }
-
-                # Create temp config file
-                with tempfile.NamedTemporaryFile(
-                    mode="w", suffix=".yaml", delete=False
-                ) as f:
-                    yaml.dump(config_data, f)
-                    config_path = f.name
-
-                print(f"Created config file: {config_path}")
-                print(f"Config content:")
-                print(yaml.dump(config_data, default_flow_style=False))
-
-                try:
-                    # Run realtime inference via subprocess
-                    print(f"Running realtime inference for avatar: {avatar_id}")
-
-                    cmd = [
-                        sys.executable,
-                        "scripts/realtime_inference.py",
-                        "--version",
-                        "v15",
-                        "--inference_config",
-                        config_path,
-                        "--batch_size",
-                        "4",
-                        "--fps",
-                        "25",
-                    ]
-
-                    print(f"Command: {' '.join(cmd)}")
-
-                    # Set environment for subprocess
-                    env = os.environ.copy()
-                    env["PYTHONPATH"] = musetalk_abs_path
-                    env["PYTHONIOENCODING"] = "utf-8"  # Fix Unicode encoding issues
-
-                    result = subprocess.run(
-                        cmd,
-                        cwd=musetalk_abs_path,
-                        capture_output=False,
-                        text=True,
-                        env=env,  # Pass environment with PYTHONPATH
-                        encoding="utf-8",  # Explicit UTF-8 encoding
-                        errors="replace",  # Replace problematic characters
-                    )
-
-                    print(
-                        "=================================================================="
-                    )
-
-                    if result.returncode != 0:
-                        print(f"Realtime inference failed:")
-                        print(f"STDOUT: {result.stdout}")
-                        print(f"STDERR: {result.stderr}")
-                        raise Exception(
-                            f"Realtime inference process failed with code {result.returncode}"
-                        )
-
-                    print("Realtime inference completed successfully")
-                    print(f"Output: {result.stdout}")
-
-                    # Find and move output file
-                    avatar_output_path = os.path.join(
-                        musetalk_abs_path,
-                        f"results/v15/avatars/{avatar_id}/vid_output/0.mp4",
-                    )
-
-                    output_abs_path = os.path.join(original_cwd, str(output_path))
-
-                    if os.path.exists(avatar_output_path):
-                        import shutil
-
-                        shutil.move(avatar_output_path, output_abs_path)
-                        print(f"Output moved to: {output_abs_path}")
-                    else:
-                        print(
-                            f"Warning: Expected output not found at {avatar_output_path}"
-                        )
-                        # Try alternative path
-                        alt_path = os.path.join(
-                            musetalk_abs_path,
-                            f"results/v15/avatars/{avatar_id}/vid_output/{output_filename}.mp4",
-                        )
-                        if os.path.exists(alt_path):
-                            shutil.move(alt_path, output_abs_path)
-                            print(f"Alternative output moved to: {output_abs_path}")
-
-                finally:
-                    # Clean up temp file
-                    try:
-                        os.unlink(config_path)
-                    except:
-                        pass
-
-                return str(output_path)
-
-            finally:
-                # Always restore original working directory
-                os.chdir(original_cwd)
-                # Remove MuseTalk from path
-                if musetalk_abs_path in sys.path:
-                    sys.path.remove(musetalk_abs_path)
-
-        except Exception as e:
-            print(f"MuseTalk error: {e}")
-            # Make sure we restore working directory even on error
-            try:
-                os.chdir(original_cwd)
-            except:
-                pass
-            return None
-

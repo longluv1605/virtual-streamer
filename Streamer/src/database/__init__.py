@@ -3,13 +3,14 @@ from .product import ProductService
 from .stream_session import StreamSessionService
 from .comment import CommentService
 from .template import ScriptTemplateService
-
+from .avatar import AvatarService
 
 __all__ = [
     "ProductService",
     "StreamSessionService",
     "CommentService",
     "ScriptTemplateService",
+    "AvatarService",
     
     "get_db", 
     "create_tables", 

@@ -11,13 +11,12 @@ from typing import List
 from pathlib import Path
 import asyncio
 
-from ..database import get_db
+from ..database import get_db, AvatarService
 from ..models import (
     AvatarCreate,
     AvatarUpdate,
     AvatarResponse,
 )
-from ..services import AvatarService
 
 
 ####################################
