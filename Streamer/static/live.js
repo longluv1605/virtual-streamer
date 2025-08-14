@@ -77,7 +77,8 @@ async function loadSession() {
         updateProgressBar();
 
         if (currentSession.status === "live") {
-            startLiveSession();
+            if (!currentSession.for_stream) startLiveSession();
+            else ensureRealtimeAndWebRTC();
         }
     } catch (error) {
         console.error("Error loading session:", error);
@@ -885,4 +886,90 @@ function handleWebSocketMessage(data) {
         //     }
         //     break;
     }
+}
+
+async function startWebRTC(sessionId, fps = 25) {
+    if (window._webrtcStarted) return;
+    const pc = new RTCPeerConnection();
+
+    const videoEl = document.getElementById("videoPlayer");
+    pc.ontrack = (e) => {
+        if (e.track.kind === "video") {
+            const ms = videoEl.srcObject || new MediaStream();
+            ms.addTrack(e.track);
+            videoEl.srcObject = ms;
+        }
+        // else if (e.track.kind === "audio") {
+        //     // Nếu backend sau này thêm audio track
+        //     let audioEl = document.getElementById("remoteAudio");
+        //     if (!audioEl) {
+        //         audioEl = document.createElement("audio");
+        //         audioEl.id = "remoteAudio";
+        //         audioEl.autoplay = true;
+        //         document.body.appendChild(audioEl);
+        //     }
+        //     const msA = audioEl.srcObject || new MediaStream();
+        //     msA.addTrack(e.track);
+        //     audioEl.srcObject = msA;
+        // }
+    };
+
+    console.log(`[${Date.now()}] Starting WebRTC with transceivers...`);
+    
+    // Add transceivers to indicate we want to receive video and audio
+    // This is crucial - without this, createOffer() won't include media lines
+    pc.addTransceiver("video", { direction: "recvonly" });
+    pc.addTransceiver("audio", { direction: "recvonly" });
+
+    console.log(
+        "Created transceivers, PC transceivers count:",
+        pc.getTransceivers().length
+    );
+
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+
+    console.log("Sending WebRTC offer:");
+    console.log("- Session ID:", sessionId);
+    console.log("- Type:", offer.type);
+    console.log("- SDP length:", offer.sdp?.length);
+    console.log("- SDP content:", offer.sdp);
+
+    const res = await fetch("/api/webrtc/offer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            session_id: sessionId,
+            sdp: offer.sdp,
+            type: offer.type,
+            fps: fps,
+        }),
+    });
+    if (!res.ok) {
+        console.error("Offer failed");
+        return;
+    }
+    const answer = await res.json();
+    await pc.setRemoteDescription(answer);
+
+    window._webrtcStarted = true;
+    window._pc = pc;
+}
+
+async function ensureRealtimeAndWebRTC() {
+    if (window._webrtcStarted) {
+        console.log("WebRTC started...");
+        return;
+    }
+    try {
+        // Khởi động realtime producer (chỉ cần nếu chưa chạy)
+        await fetch(`/api/webrtc/realtime/start?session_id=${sessionId}`, {
+            method: "POST",
+        });
+        console.log("Fetched /api/webrtc/realtime/start...");
+    } catch (e) {
+        console.warn("Realtime start failed (có thể đã chạy):", e);
+    }
+    const fps = currentSession?.fps || 25;
+    await startWebRTC(sessionId, fps);
 }

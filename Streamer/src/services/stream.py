@@ -1,10 +1,14 @@
 from typing import Optional, List
+import threading
+import time
+import numpy as np
 
 from src.models import ScriptTemplate, Avatar
 
 from .llm import LLMService
 from .tts import TTSService
 from .musetalk import MuseTalkService
+from .webrtc import webrtc_service
 
 
 class StreamProcessor:
@@ -50,11 +54,13 @@ class StreamProcessor:
             # Ensure avatar is prepared
             if not avatar.is_prepared:
                 print(f"Avatar {avatar.name} is not prepared...")
-                
+
             if not session.for_stream:
                 print(f"Session is not realtime streaming...")
-                
-            print(f"Prepare session with {session.stream_fps} FPS and size {session.batch_size}")
+
+            print(
+                f"Prepare session with {session.stream_fps} FPS and size {session.batch_size}"
+            )
 
             # Process each product
             for stream_product in stream_products:
@@ -250,13 +256,21 @@ Hãy trả lời:
                 "audio_path": audio_path,
                 "is_processed": True,
             }
-            
+
             if not for_stream:
                 # Generate video using avatar system
-                print(f"Generating video for {product.name} with avatar {avatar.name}...")
+                print(
+                    f"Generating video for {product.name} with avatar {avatar.name}..."
+                )
                 video_filename = f"output_{session_id}_{product.id}"
                 video_path = await self.musetalk_service.generate_video_with_avatar(
-                    audio_path, stream_fps, batch_size, avatar, session_id, product.id, video_filename
+                    audio_path,
+                    stream_fps,
+                    batch_size,
+                    avatar,
+                    session_id,
+                    product.id,
+                    video_filename,
                 )
                 update_data["video_path"] = video_path
 
@@ -272,3 +286,57 @@ Hãy trả lời:
             StreamSessionService.update_stream_product(
                 db_session, stream_product.id, {"is_processed": False}
             )
+
+    def start_realtime_session(
+        self, session_id: str, fps: int = 25, sample_rate: int = 16000
+    ):
+        """Start realtime stream session."""
+        try:
+            # Tạo session và lấy queue
+            webrtc_service.ensure_session(session_id, fps=fps, sample_rate=sample_rate)
+            video_q, audio_q = webrtc_service.get_producer_queues(session_id)
+            print(
+                f"Realtime session {session_id} started (fps={fps}, sr={sample_rate})"
+            )
+        except Exception as e:
+            print(f"Failed to start session {session_id}")
+            return {"status": "error", "detail": str(e)}
+
+        def _produce():
+            try:
+                # TODO: Thay bằng tích hợp MuseTalk thật
+                # Option 1: Import và sử dụng realtime_inference_synced.py
+                # Option 2: Gọi subprocess
+                # Option 3: Tích hợp trực tiếp MuseTalk models
+
+                # Demo code - thay bằng MuseTalk thật:
+                idx = 0
+                chunk_len = int(sample_rate / fps)
+
+                while idx < fps * 60:  # Demo 60 giây
+                    # TODO: Lấy frame từ MuseTalk inference
+                    frame = np.zeros((480, 640, 3), dtype=np.uint8)
+                    frame[:] = (idx * 3) % 255
+
+                    # TODO: Lấy audio chunk từ MuseTalk
+                    t = np.arange(chunk_len) / sample_rate
+                    audio = (0.1 * np.sin(2 * np.pi * 440 * t)).astype(np.float32)
+
+                    try:
+                        video_q.put((idx, frame), timeout=0.1)
+                        audio_q.put((idx, audio), timeout=0.1)
+                    except:
+                        pass  # Queue full, drop frame
+
+                    time.sleep(1 / fps)
+                    idx += 1
+
+            except Exception as e:
+                print(f"Producer thread error in session {session_id}: {e}")
+
+        threading.Thread(target=_produce, daemon=True).start()
+        return {"status": "realtime_started"}
+
+
+#######################################
+stream_processor = StreamProcessor()

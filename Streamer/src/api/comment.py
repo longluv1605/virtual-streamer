@@ -9,7 +9,8 @@ from ..models import (
     CommentCreate,
     CommentResponse,
 )
-from ._manager_ import stream_processor, manager
+from ..services import stream_processor
+from ._manager import connection_manager
 
 ####################################
 router = APIRouter(prefix="/sessions/{session_id}/comments", tags=["comments"])
@@ -23,7 +24,7 @@ async def create_comment(
     db_comment = CommentService.create_comment(db, session_id, comment)
 
     # Broadcast new comment to all connected clients
-    await manager.broadcast(
+    await connection_manager.broadcast(
         json.dumps(
             {
                 "type": "new_comment",
@@ -146,7 +147,7 @@ async def answer_question(
         process_qa_background, session_id, comment_id, target_comment.message, context
     )
 
-    await manager.broadcast(
+    await connection_manager.broadcast(
         json.dumps(
             {
                 "type": "question_processing",
@@ -176,7 +177,7 @@ async def process_qa_background(
 
         if video_path:
             # Broadcast success
-            await manager.broadcast(
+            await connection_manager.broadcast(
                 json.dumps(
                     {
                         "type": "question_answered",
@@ -189,7 +190,7 @@ async def process_qa_background(
             )
         else:
             # Broadcast error
-            await manager.broadcast(
+            await connection_manager.broadcast(
                 json.dumps(
                     {
                         "type": "question_error",
@@ -203,7 +204,7 @@ async def process_qa_background(
     except Exception as e:
         print(f"Background Q&A processing error: {e}")
         # Broadcast error
-        await manager.broadcast(
+        await connection_manager.broadcast(
             json.dumps(
                 {
                     "type": "question_error",

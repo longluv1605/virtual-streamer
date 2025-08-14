@@ -6,6 +6,7 @@ from .comment import Comment, CommentCreate, CommentResponse
 from .product import Product, ProductCreate, ProductUpdate, ProductResponse, ProductStatsResponse, PaginatedProductResponse
 from .stream_session import StreamSession, StreamProduct, StreamSessionCreate, StreamSessionResponse, StreamProductResponse
 from .template import ScriptTemplate, ScriptTemplateCreate, ScriptTemplateResponse
+from .webrtc import Offer
 
 __all__ = [
     # Base
@@ -18,6 +19,7 @@ __all__ = [
     "StreamSession",
     "StreamProduct",
     "ScriptTemplate",
+    "Offer",
     
     # Pydantic Create Schemas
     "AvatarCreate",

@@ -1,6 +1,5 @@
 from fastapi import WebSocket
 from typing import List
-from ..services import StreamProcessor
 
 class ConnectionManager:
     def __init__(self):
@@ -24,5 +23,4 @@ class ConnectionManager:
                 pass
 
 ############################
-stream_processor = StreamProcessor()
-manager = ConnectionManager()
+connection_manager = ConnectionManager()

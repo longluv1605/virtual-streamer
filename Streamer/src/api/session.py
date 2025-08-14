@@ -9,7 +9,8 @@ from ..models import (
     StreamSessionResponse, 
     StreamProductResponse
 )
-from ._manager_ import stream_processor, manager
+from ..services import stream_processor
+from ._manager import connection_manager
 
 
 
@@ -35,9 +36,7 @@ async def get_session(session_id: int, db: Session = Depends(get_db)):
     return session
 
 
-@router.get(
-    "/{session_id}/products", response_model=List[StreamProductResponse]
-)
+@router.get("/{session_id}/products", response_model=List[StreamProductResponse])
 async def get_session_products(session_id: int, db: Session = Depends(get_db)):
     return StreamSessionService.get_session_products(db, session_id)
 
@@ -69,7 +68,7 @@ async def process_session_background(session_id: int):
     try:
         success = await stream_processor.process_session(session_id, db)
         if success:
-            await manager.broadcast(
+            await connection_manager.broadcast(
                 json.dumps(
                     {
                         "type": "session_ready",
@@ -79,7 +78,7 @@ async def process_session_background(session_id: int):
                 )
             )
         else:
-            await manager.broadcast(
+            await connection_manager.broadcast(
                 json.dumps(
                     {
                         "type": "session_error",
@@ -108,7 +107,7 @@ async def start_session(session_id: int, db: Session = Depends(get_db)):
     # Update status to live
     StreamSessionService.update_session_status(db, session_id, "live")
 
-    await manager.broadcast(
+    await connection_manager.broadcast(
         json.dumps(
             {
                 "type": "session_started",
@@ -130,7 +129,7 @@ async def stop_session(session_id: int, db: Session = Depends(get_db)):
     # Update status to completed
     StreamSessionService.update_session_status(db, session_id, "completed")
 
-    await manager.broadcast(
+    await connection_manager.broadcast(
         json.dumps(
             {
                 "type": "session_stopped",
@@ -140,4 +139,3 @@ async def stop_session(session_id: int, db: Session = Depends(get_db)):
         )
     )
     return {"message": "Session stopped", "session_id": session_id}
-

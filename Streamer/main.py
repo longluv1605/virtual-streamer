@@ -60,14 +60,15 @@ async def admin_dashboard():
     return FileResponse("static/admin.html")
 
 
+@app.get("/products", response_class=HTMLResponse)
+async def products_page():
+    return FileResponse("static/products.html")
+
+
 @app.get("/live/{session_id:int}", response_class=HTMLResponse)
 async def live_session(session_id: int):
     return FileResponse("static/live.html")
 
-
-@app.get("/products", response_class=HTMLResponse)
-async def products_page():
-    return FileResponse("static/products.html")
 
 # Health check
 @app.get("/api/health")
@@ -77,4 +78,4 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="localhost", port=8000, reload=True)
+    uvicorn.run("main:app", host="localhost", port=8000, reload=False)
