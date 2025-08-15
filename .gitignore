@@ -6,3 +6,4 @@ MuseTalk
 **__pycache__**
 *.db
 *test.py*
+**result**

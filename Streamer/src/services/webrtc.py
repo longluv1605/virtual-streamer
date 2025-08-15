@@ -13,6 +13,10 @@ from aiortc import (
 )
 from aiortc.contrib.media import MediaBlackhole
 
+import logging
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger(__name__)
+
 
 VideoItem = Tuple[int, np.ndarray]  # (frame_idx, bgr_frame[h,w,3])
 AudioItem = Tuple[int, np.ndarray]  # (frame_idx, mono_samples float32|int16)
@@ -39,7 +43,7 @@ class VideoTrack(MediaStreamTrack):
             vf.time_base = fractions.Fraction(1, self._fps)
             return vf
         except Exception as e:
-            print("VideoTrack recv error: %s", e)
+            logger.error("VideoTrack recv error: %s", e)
             raise
 
 
@@ -78,7 +82,7 @@ class AudioTrack(MediaStreamTrack):
             self._pts_samples += n
             return af
         except Exception as e:
-            print("AudioTrack recv error: %s", e)
+            logger.error("AudioTrack recv error: %s", e)
             raise
 
 
@@ -90,10 +94,8 @@ class WebRTCSession:
         audio_queue.put((idx, audio_chunk))
     """
 
-    def __init__(self, session_id: str, fps: int, sample_rate: int):
+    def __init__(self, session_id: str):
         self.session_id = session_id
-        self.fps = fps
-        self.sample_rate = sample_rate
         self.video_queue: Queue[VideoItem] = Queue(maxsize=120)  # ~5s @ 25fps
         self.audio_queue: Queue[AudioItem] = Queue(maxsize=5000)  # tùy chunk size
         self.pc: Optional[RTCPeerConnection] = None
@@ -116,16 +118,16 @@ class WebRTCService:
         self.sessions: Dict[str, WebRTCSession] = {}
 
     def create_or_get_session(
-        self, session_id: str, fps: int, sample_rate: int
+        self, session_id: str
     ) -> WebRTCSession:
         """Tạo mới hoặc lấy session theo session_id."""
         sess = self.sessions.get(session_id)
         if not sess:
-            sess = WebRTCSession(session_id, fps, sample_rate)
+            sess = WebRTCSession(session_id)
             self.sessions[session_id] = sess
-            print(f"Created WebRTC session {session_id} (fps={fps}, sr={sample_rate})")
+            logger.info(f"Created WebRTC session {session_id})")
         else:
-            print(f"Got WebRTC session {session_id} (fps={fps}, sr={sample_rate})")
+            logger.info(f"Got WebRTC session {session_id})")
         return sess
 
     def get_session(self, session_id: str) -> Optional[WebRTCSession]:
@@ -139,9 +141,9 @@ class WebRTCService:
             raise KeyError(f"Session {session_id} chưa tồn tại")
         return sess.video_queue, sess.audio_queue
 
-    def ensure_session(self, session_id: str, fps: int, sample_rate: int):
+    def ensure_session(self, session_id: str):
         """Đảm bảo session tồn tại, nếu chưa có thì tạo mới."""
-        self.create_or_get_session(session_id, fps, sample_rate)
+        self.create_or_get_session(session_id)
 
     async def create_answer(
         self,
@@ -158,8 +160,8 @@ class WebRTCService:
             if not offer_type:
                 raise ValueError("Missing offer type")
 
-            print(
-                f"[DEBUG] offer_type='{offer_type}', sdp_len={len(offer_sdp)}"
+            logger.info(
+                f"offer_type='{offer_type}', sdp_len={len(offer_sdp)}"
             )
 
             sess = self.create_or_get_session(session_id, fps, sample_rate)
@@ -175,7 +177,7 @@ class WebRTCService:
 
             @pc.on("connectionstatechange")
             async def _on_state():
-                print(f"PC {session_id} state={pc.connectionState}")
+                logger.info(f"PC {session_id} state={pc.connectionState}")
                 if pc.connectionState in ("failed", "closed", "disconnected"):
                     await self.close(session_id)
 
@@ -183,57 +185,57 @@ class WebRTCService:
             video_track = VideoTrack(sess.video_queue, sess.fps)
             audio_track = AudioTrack(sess.audio_queue, sess.sample_rate)
             
-            print(f"[DEBUG] Adding video track: {video_track}")
+            logger.info(f"Adding video track: {video_track}")
             pc.addTrack(video_track)
-            print(f"[DEBUG] Adding audio track: {audio_track}")
+            logger.info(f"Adding audio track: {audio_track}")
             pc.addTrack(audio_track)
             
-            print(f"[DEBUG] PC has {len(pc.getTransceivers())} transceivers after adding tracks")
+            logger.info(f"PC has {len(pc.getTransceivers())} transceivers after adding tracks")
 
             @pc.on("track")
             def _on_track(track):
-                print(f"Client track received [kind={track.kind}] (ignored)")
+                logger.info(f"Client track received [kind={track.kind}] (ignored)")
                 MediaBlackhole().addTrack(track)
 
             try:
                 offer = RTCSessionDescription(sdp=offer_sdp, type=offer_type)
-                print(f"[DEBUG] Created RTCSessionDescription successfully")
+                logger.info(f"Created RTCSessionDescription successfully")
             except Exception as sdp_error:
-                print(f"[DEBUG] RTCSessionDescription creation failed: {sdp_error}")
+                logger.error(f"RTCSessionDescription creation failed: {sdp_error}")
                 raise ValueError(f"Invalid SDP or type: {sdp_error}")
 
             try:
                 await pc.setRemoteDescription(offer)
-                print(f"[DEBUG] setRemoteDescription successful")
+                logger.info(f"setRemoteDescription successful")
             except Exception as set_error:
-                print(f"[DEBUG] setRemoteDescription failed: {set_error}")
+                logger.error(f"setRemoteDescription failed: {set_error}")
                 raise ValueError(f"Failed to set remote description: {set_error}")
 
             try:
                 answer = await pc.createAnswer()
-                print(f"[DEBUG] createAnswer successful, answer type: {answer.type}")
+                logger.info(f"createAnswer successful, answer type: {answer.type}")
             except Exception as answer_error:
-                print(f"[DEBUG] createAnswer failed: {answer_error}")
+                logger.error(f"createAnswer failed: {answer_error}")
                 raise ValueError(f"Failed to create answer: {answer_error}")
 
             try:
                 await pc.setLocalDescription(answer)
-                print(f"[DEBUG] setLocalDescription successful")
+                logger.info(f"setLocalDescription successful")
             except Exception as local_error:
-                print(f"[DEBUG] setLocalDescription failed: {local_error}")
+                logger.error(f"setLocalDescription failed: {local_error}")
                 raise ValueError(f"Failed to set local description: {local_error}")
 
             try:
                 local_desc = pc.localDescription
-                print(
-                    f"[DEBUG] Got localDescription: type={local_desc.type if local_desc else 'None'}"
+                logger.info(
+                    f"Got localDescription: type={local_desc.type if local_desc else 'None'}"
                 )
                 return local_desc
             except Exception as desc_error:
-                print(f"[DEBUG] Failed to get localDescription: {desc_error}")
+                logger.error(f"Failed to get localDescription: {desc_error}")
                 raise ValueError(f"Failed to get local description: {desc_error}")
         except Exception as e:
-            print(f"[create_answer] error: {e}")
+            logger.error(f"[create_answer] error: {e}")
             raise
 
     def push_video_frame(
@@ -256,7 +258,7 @@ class WebRTCService:
                     pass
             q.put((idx, frame_bgr))
         except Exception as e:
-            print("push_video_frame error: %s", e)
+            logger.error("push_video_frame error: %s", e)
 
     def push_audio_chunk(
         self,
@@ -278,7 +280,7 @@ class WebRTCService:
                     pass
             q.put((idx, audio_chunk))
         except Exception as e:
-            print("push_audio_chunk error: %s", e)
+            logger.error("push_audio_chunk error: %s", e)
 
     async def close(self, session_id: str):
         """Đóng session và giải phóng tài nguyên."""
@@ -289,9 +291,9 @@ class WebRTCService:
             sess.close_queues()
             if sess.pc:
                 await sess.pc.close()
-            print("Closed WebRTC session %s", session_id)
+            logger.info("Closed WebRTC session %s", session_id)
         except Exception as e:
-            print("close error: %s", e)
+            logger.error("close error: %s", e)
 
 
 webrtc_service = WebRTCService()

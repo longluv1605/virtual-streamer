@@ -3,7 +3,12 @@ from src.models import Avatar
 import os
 from typing import List
 
-class AvatarService:
+import logging
+
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger(__name__)
+
+class AvatarDatabaseService:
     """Service for managing avatars and their preparation status"""
 
     @staticmethod
@@ -14,7 +19,7 @@ class AvatarService:
             avatar = db.query(Avatar).filter(Avatar.video_path == video_path).first()
 
             if avatar:
-                print(f"Found existing avatar: {avatar.name} (ID: {avatar.id})")
+                logger.info(f"Found existing avatar: {avatar.name} (ID: {avatar.id})")
                 return avatar
 
             # Create new avatar
@@ -33,7 +38,6 @@ class AvatarService:
                 video_path=video_path,
                 name=name,
                 is_prepared=False,
-                preparation_status="pending",
                 file_size=file_size,
             )
 
@@ -41,17 +45,17 @@ class AvatarService:
             db.commit()
             db.refresh(avatar)
 
-            print(f"Created new avatar: {avatar.name} (ID: {avatar.id})")
+            logger.info(f"Created new avatar: {avatar.name} (ID: {avatar.id})")
             return avatar
 
         except Exception as e:
-            print(f"Error in get_or_create_avatar: {e}")
+            logger.error(f"Error in get_or_create_avatar: {e}")
             db.rollback()
             raise
 
     @staticmethod
     def update_avatar_preparation_status(
-        db: Session, avatar_id: int, status: str, is_prepared: bool = None
+        db: Session, avatar_id: int, is_prepared: bool = None
     ):
         """Update avatar preparation status"""
         try:
@@ -59,15 +63,14 @@ class AvatarService:
             if not avatar:
                 raise ValueError(f"Avatar with ID {avatar_id} not found")
 
-            avatar.preparation_status = status
             if is_prepared is not None:
                 avatar.is_prepared = is_prepared
 
             db.commit()
-            print(f"Updated avatar {avatar_id} status to: {status}")
+            logger.info(f"Updated avatar {avatar_id} preparation to: {is_prepared}")
 
         except Exception as e:
-            print(f"Error updating avatar status: {e}")
+            logger.error(f"Error updating avatar status: {e}")
             db.rollback()
             raise
 

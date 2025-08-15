@@ -1,9 +1,12 @@
 from sqlalchemy.orm import Session
 from src.models import Product, ProductCreate
 from typing import List, Optional
+import logging
 
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger(__name__)
 
-class ProductService:
+class ProductDatabaseService:
     @staticmethod
     def create_product(db: Session, product: ProductCreate) -> Product:
         try:
@@ -13,7 +16,7 @@ class ProductService:
             db.refresh(db_product)
             return db_product
         except Exception as e:
-            print(f"Error creating product: {e}")
+            logger.error(f"Error creating product: {e}")
             db.rollback()
             raise
 
@@ -51,12 +54,12 @@ class ProductService:
                 query = query.filter(Product.price <= max_price)
 
             products = query.offset(skip).limit(limit).all()
-            print(
+            logger.info(
                 f"Retrieved {len(products)} products with filters: active_only={active_only}, category={category}, search={search}"
             )
             return products
         except Exception as e:
-            print(f"Error getting products: {e}")
+            logger.error(f"Error getting products: {e}")
             raise
 
     @staticmethod
@@ -91,24 +94,24 @@ class ProductService:
                 query = query.filter(Product.price <= max_price)
 
             count = query.count()
-            print(
+            logger.info(
                 f"Product count: {count} with filters: active_only={active_only}, category={category}, search={search}"
             )
             return count
         except Exception as e:
-            print(f"Error counting products: {e}")
+            logger.error(f"Error counting products: {e}")
             raise
 
     @staticmethod
     def get_product(db: Session, product_id: int) -> Optional[Product]:
         try:
             product = db.query(Product).filter(Product.id == product_id).first()
-            print(
+            logger.info(
                 f"Retrieved product {product_id}: {'Found' if product else 'Not found'}"
             )
             return product
         except Exception as e:
-            print(f"Error getting product {product_id}: {e}")
+            logger.error(f"Error getting product {product_id}: {e}")
             raise
 
     @staticmethod
@@ -118,18 +121,18 @@ class ProductService:
         try:
             db_product = db.query(Product).filter(Product.id == product_id).first()
             if db_product:
-                print(f"Updating product {product_id} with data: {product_update}")
+                logger.info(f"Updating product {product_id} with data: {product_update}")
                 for key, value in product_update.items():
                     if hasattr(db_product, key):
                         setattr(db_product, key, value)
                 db.commit()
                 db.refresh(db_product)
-                print(f"Successfully updated product {product_id}")
+                logger.info(f"Successfully updated product {product_id}")
             else:
-                print(f"Product {product_id} not found for update")
+                logger.warning(f"Product {product_id} not found for update")
             return db_product
         except Exception as e:
-            print(f"Error updating product {product_id}: {e}")
+            logger.error(f"Error updating product {product_id}: {e}")
             db.rollback()
             raise
 
@@ -139,16 +142,16 @@ class ProductService:
         try:
             db_product = db.query(Product).filter(Product.id == product_id).first()
             if db_product:
-                print(f"Soft deleting product {product_id}: {db_product.name}")
+                logger.info(f"Soft deleting product {product_id}: {db_product.name}")
                 db_product.is_active = False
                 db.commit()
-                print(f"Successfully soft deleted product {product_id}")
+                logger.info(f"Successfully soft deleted product {product_id}")
                 return True
             else:
-                print(f"Product {product_id} not found for deletion")
+                logger.warning(f"Product {product_id} not found for deletion")
                 return False
         except Exception as e:
-            print(f"Error deleting product {product_id}: {e}")
+            logger.error(f"Error deleting product {product_id}: {e}")
             db.rollback()
             raise
 
@@ -158,16 +161,16 @@ class ProductService:
         try:
             db_product = db.query(Product).filter(Product.id == product_id).first()
             if db_product:
-                print(f"Restoring product {product_id}: {db_product.name}")
+                logger.info(f"Restoring product {product_id}: {db_product.name}")
                 db_product.is_active = True
                 db.commit()
                 db.refresh(db_product)
-                print(f"Successfully restored product {product_id}")
+                logger.info(f"Successfully restored product {product_id}")
             else:
-                print(f"Product {product_id} not found for restoration")
+                logger.warning(f"Product {product_id} not found for restoration")
             return db_product
         except Exception as e:
-            print(f"Error restoring product {product_id}: {e}")
+            logger.error(f"Error restoring product {product_id}: {e}")
             db.rollback()
             raise
 
@@ -177,16 +180,16 @@ class ProductService:
         try:
             db_product = db.query(Product).filter(Product.id == product_id).first()
             if db_product:
-                print(f"Hard deleting product {product_id}: {db_product.name}")
+                logger.info(f"Hard deleting product {product_id}: {db_product.name}")
                 db.delete(db_product)
                 db.commit()
-                print(f"Successfully hard deleted product {product_id}")
+                logger.info(f"Successfully hard deleted product {product_id}")
                 return True
             else:
-                print(f"Product {product_id} not found for hard deletion")
+                logger.warning(f"Product {product_id} not found for hard deletion")
                 return False
         except Exception as e:
-            print(f"Error hard deleting product {product_id}: {e}")
+            logger.error(f"Error hard deleting product {product_id}: {e}")
             db.rollback()
             raise
 
@@ -201,10 +204,10 @@ class ProductService:
                 .all()
             )
             category_list = [cat[0] for cat in categories if cat[0]]
-            print(f"Retrieved {len(category_list)} categories: {category_list}")
+            logger.info(f"Retrieved {len(category_list)} categories: {category_list}")
             return category_list
         except Exception as e:
-            print(f"Error getting categories: {e}")
+            logger.error(f"Error getting categories: {e}")
             raise
 
     @staticmethod
@@ -213,7 +216,7 @@ class ProductService:
         try:
             from sqlalchemy import func
 
-            print("Calculating product statistics...")
+            logger.info("Calculating product statistics...")
 
             # Basic counts
             total_products = db.query(Product).filter(Product.is_active == True).count()
@@ -320,10 +323,10 @@ class ProductService:
                 },
             }
 
-            print(
+            logger.info(
                 f"Product stats calculated: {total_products} total, {active_products} active, {low_stock_count} low stock"
             )
             return stats
         except Exception as e:
-            print(f"Error calculating product stats: {e}")
+            logger.error(f"Error calculating product stats: {e}")
             raise

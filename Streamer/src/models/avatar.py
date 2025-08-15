@@ -24,10 +24,6 @@ class Avatar(Base):
     video_path = Column(String(500), nullable=False, unique=True)  # Unique video path
     name = Column(String(255), nullable=False)  # Friendly name
     is_prepared = Column(Boolean, default=False)  # Đã preparation chưa
-    bbox_shift = Column(Integer, default=0)  # Avatar-specific bbox_shift
-    preparation_status = Column(
-        String(50), default="pending"
-    )  # pending, processing, completed, error
     file_size = Column(Integer)  # File size in bytes
     duration = Column(Float)  # Video duration in seconds
     resolution = Column(String(20))  # Video resolution (e.g., "1920x1080")
@@ -41,14 +37,11 @@ class Avatar(Base):
 class AvatarCreate(BaseModel):
     video_path: str
     name: str
-    bbox_shift: int = 0
 
 
 class AvatarUpdate(BaseModel):
     name: Optional[str] = None
-    bbox_shift: Optional[int] = None
     is_prepared: Optional[bool] = None
-    preparation_status: Optional[str] = None
 
 
 class AvatarResponse(BaseModel):
@@ -56,8 +49,6 @@ class AvatarResponse(BaseModel):
     video_path: str
     name: str
     is_prepared: bool
-    bbox_shift: int
-    preparation_status: str
     file_size: Optional[int]
     duration: Optional[float]
     resolution: Optional[str]

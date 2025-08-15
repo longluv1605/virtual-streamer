@@ -933,7 +933,6 @@ async function startWebRTC(sessionId, fps = 25) {
     console.log("- Session ID:", sessionId);
     console.log("- Type:", offer.type);
     console.log("- SDP length:", offer.sdp?.length);
-    console.log("- SDP content:", offer.sdp);
 
     const res = await fetch("/api/webrtc/offer", {
         method: "POST",
@@ -962,14 +961,23 @@ async function ensureRealtimeAndWebRTC() {
         return;
     }
     try {
-        // Khởi động realtime producer (chỉ cần nếu chưa chạy)
-        await fetch(`/api/webrtc/realtime/start?session_id=${sessionId}`, {
-            method: "POST",
-        });
-        console.log("Fetched /api/webrtc/realtime/start...");
+        // Check MuseTalk status first
+        const statusRes = await fetch('/api/webrtc/musetalk/status');
+        const musetalkStatus = await statusRes.json();
+        console.log('MuseTalk status:', musetalkStatus);
+        
+        // Prepare parameters for realtime start
+        let realtimeParams = `session_id=${sessionId}`;
+        
+        // Khởi động realtime producer
+        const realtimeUrl = `/api/webrtc/realtime/start?${realtimeParams}`;
+        await fetch(realtimeUrl, { method: "POST" });
+        console.log("Fetched realtime start with params:", realtimeParams);
+        
     } catch (e) {
         console.warn("Realtime start failed (có thể đã chạy):", e);
     }
+    
     const fps = currentSession?.fps || 25;
-    await startWebRTC(sessionId, fps);
+    // await startWebRTC(sessionId, fps);
 }

@@ -1,5 +1,8 @@
 from pathlib import Path
+import logging
 
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger(__name__)
 
 class TTSService:
     """Text-to-Speech service"""
@@ -22,7 +25,7 @@ class TTSService:
             else:
                 raise ValueError(f"Unsupported TTS provider: {self.provider}")
         except Exception as e:
-            print(f"Error in TTS: {e}")
+            logger.error(f"Error in TTS: {e}")
             return None
 
     async def _edge_tts(self, text: str, output_path: str, voice: str) -> str:
@@ -34,7 +37,7 @@ class TTSService:
             await tts.save(output_path)
             return output_path
         except ImportError:
-            print("edge-tts not installed. Installing...")
+            logger.error("edge-tts not installed. Installing...")
             import subprocess
 
             subprocess.check_call(["pip", "install", "edge-tts"])
@@ -45,7 +48,7 @@ class TTSService:
             await tts.save(output_path)
             return output_path
         except Exception as e:
-            print(f"Edge TTS error: {e}")
+            logger.error(f"Edge TTS error: {e}")
             return None
 
 

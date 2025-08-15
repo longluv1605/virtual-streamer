@@ -4,13 +4,19 @@ from typing import List, Optional
 from pathlib import Path
 import json
 
-from ..database import get_db, StreamSessionService, CommentService
+from ..database import get_db, StreamSessionDatabaseService, CommentDatabaseService
 from ..models import (
     CommentCreate,
     CommentResponse,
 )
 from ..services import stream_processor
 from ._manager import connection_manager
+
+import logging
+
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger(__name__)
+
 
 ####################################
 router = APIRouter(prefix="/sessions/{session_id}/comments", tags=["comments"])
@@ -21,7 +27,7 @@ router = APIRouter(prefix="/sessions/{session_id}/comments", tags=["comments"])
 async def create_comment(
     session_id: int, comment: CommentCreate, db: Session = Depends(get_db)
 ):
-    db_comment = CommentService.create_comment(db, session_id, comment)
+    db_comment = CommentDatabaseService.create_comment(db, session_id, comment)
 
     # Broadcast new comment to all connected clients
     await connection_manager.broadcast(
@@ -48,12 +54,12 @@ async def create_comment(
 async def get_session_comments(
     session_id: int, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)
 ):
-    return CommentService.get_session_comments(db, session_id, skip, limit)
+    return CommentDatabaseService.get_session_comments(db, session_id, skip, limit)
 
 
 @router.get("/questions", response_model=List[CommentResponse])
 async def get_unanswered_questions(session_id: int, db: Session = Depends(get_db)):
-    return CommentService.get_unanswered_questions(db, session_id)
+    return CommentDatabaseService.get_unanswered_questions(db, session_id)
 
 
 @router.post("/auto-answer-question/{comment_id}")
@@ -66,7 +72,7 @@ async def auto_answer_question(
     """Auto-generate answer video for a question when product video ends"""
 
     # Verify session exists and is live
-    session = StreamSessionService.get_session(db, session_id)
+    session = StreamSessionDatabaseService.get_session(db, session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
@@ -74,7 +80,7 @@ async def auto_answer_question(
         raise HTTPException(status_code=400, detail="Session is not live")
 
     # Verify comment exists and is a question
-    comment = CommentService.get_session_comments(db, session_id, skip=0, limit=1000)
+    comment = CommentDatabaseService.get_session_comments(db, session_id, skip=0, limit=1000)
     target_comment = next((c for c in comment if c.id == comment_id), None)
 
     if not target_comment:
@@ -102,7 +108,7 @@ async def auto_answer_question(
 
 @router.put("/{comment_id}/answer")
 async def mark_comment_answered(comment_id: int, db: Session = Depends(get_db)):
-    comment = CommentService.mark_comment_answered(db, comment_id)
+    comment = CommentDatabaseService.mark_comment_answered(db, comment_id)
     if not comment:
         raise HTTPException(status_code=404, detail="Comment not found")
     return {"message": "Comment marked as answered"}
@@ -120,7 +126,7 @@ async def answer_question(
     """Generate answer video for a question during live session"""
 
     # Verify session exists and is live
-    session = StreamSessionService.get_session(db, session_id)
+    session = StreamSessionDatabaseService.get_session(db, session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
@@ -128,7 +134,7 @@ async def answer_question(
         raise HTTPException(status_code=400, detail="Session is not live")
 
     # Verify comment exists and is a question
-    comment = CommentService.get_session_comments(db, session_id, skip=0, limit=1000)
+    comment = CommentDatabaseService.get_session_comments(db, session_id, skip=0, limit=1000)
     target_comment = next((c for c in comment if c.id == comment_id), None)
 
     if not target_comment:
@@ -202,7 +208,7 @@ async def process_qa_background(
             )
 
     except Exception as e:
-        print(f"Background Q&A processing error: {e}")
+        logger.error(f"Background Q&A processing error: {e}")
         # Broadcast error
         await connection_manager.broadcast(
             json.dumps(

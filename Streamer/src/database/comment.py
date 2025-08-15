@@ -1,22 +1,27 @@
 from sqlalchemy.orm import Session
 from src.models import Comment, CommentCreate
 from typing import List, Optional
+import logging
 
-class CommentService:
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger(__name__)
+
+
+class CommentDatabaseService:
     @staticmethod
     def create_comment(db: Session, session_id: int, comment: CommentCreate) -> Comment:
         try:
-            print(
+            logger.info(
                 f"Creating comment for session {session_id}: {comment.username} - {comment.message[:50]}..."
             )
             db_comment = Comment(session_id=session_id, **comment.dict())
             db.add(db_comment)
             db.commit()
             db.refresh(db_comment)
-            print(f"Successfully created comment {db_comment.id}")
+            logger.info(f"Successfully created comment {db_comment.id}")
             return db_comment
         except Exception as e:
-            print(f"Error creating comment for session {session_id}: {e}")
+            logger.error(f"Error creating comment for session {session_id}: {e}")
             db.rollback()
             raise
 
@@ -33,10 +38,10 @@ class CommentService:
                 .limit(limit)
                 .all()
             )
-            print(f"Retrieved {len(comments)} comments for session {session_id}")
+            logger.info(f"Retrieved {len(comments)} comments for session {session_id}")
             return comments
         except Exception as e:
-            print(f"Error getting comments for session {session_id}: {e}")
+            logger.error(f"Error getting comments for session {session_id}: {e}")
             raise
 
     @staticmethod
@@ -52,29 +57,29 @@ class CommentService:
                 .order_by(Comment.timestamp)
                 .all()
             )
-            print(
+            logger.info(
                 f"Retrieved {len(questions)} unanswered questions for session {session_id}"
             )
             return questions
         except Exception as e:
-            print(f"Error getting unanswered questions for session {session_id}: {e}")
+            logger.error(f"Error getting unanswered questions for session {session_id}: {e}")
             raise
 
     @staticmethod
     def mark_comment_answered(db: Session, comment_id: int) -> Optional[Comment]:
         try:
-            print(f"Marking comment {comment_id} as answered")
+            logger.info(f"Marking comment {comment_id} as answered")
             db_comment = db.query(Comment).filter(Comment.id == comment_id).first()
             if db_comment:
                 db_comment.answered = True
                 db.commit()
                 db.refresh(db_comment)
-                print(f"Successfully marked comment {comment_id} as answered")
+                logger.info(f"Successfully marked comment {comment_id} as answered")
             else:
-                print(f"Comment {comment_id} not found")
+                logger.warning(f"Comment {comment_id} not found")
             return db_comment
         except Exception as e:
-            print(f"Error marking comment {comment_id} as answered: {e}")
+            logger.error(f"Error marking comment {comment_id} as answered: {e}")
             db.rollback()
             raise
 
@@ -84,18 +89,18 @@ class CommentService:
     ) -> Optional[Comment]:
         """Update comment with answer video path and mark as answered"""
         try:
-            print(f"Updating comment {comment_id} with answer video: {video_path}")
+            logger.info(f"Updating comment {comment_id} with answer video: {video_path}")
             db_comment = db.query(Comment).filter(Comment.id == comment_id).first()
             if db_comment:
                 db_comment.answered = True
                 db_comment.answer_video_path = video_path
                 db.commit()
                 db.refresh(db_comment)
-                print(f"Successfully updated comment {comment_id} with answer video")
+                logger.info(f"Successfully updated comment {comment_id} with answer video")
             else:
-                print(f"Comment {comment_id} not found")
+                logger.warning(f"Comment {comment_id} not found")
             return db_comment
         except Exception as e:
-            print(f"Error marking comment {comment_id} as answered: {e}")
+            logger.error(f"Error marking comment {comment_id} as answered: {e}")
             db.rollback()
             raise
