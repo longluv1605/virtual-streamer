@@ -17,10 +17,16 @@ transformers==4.35.2
 moviepy==1.0.3
 opencv-python==4.8.1.78
 openai==1.98.0
+aiortc==1.13.0
+av==14.4.0
+
 tqdm
 pathlib
 asyncio
 dotenv
+
+pygame==2.6.1
+sounddevice==0.5.2
 
 # Frontend
 streamlit==1.28.2

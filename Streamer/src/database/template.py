@@ -1,20 +1,24 @@
 from sqlalchemy.orm import Session
 from src.models import ScriptTemplate, ScriptTemplateCreate
 from typing import List, Optional
+import logging
 
-class ScriptTemplateService:
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger(__name__)
+
+class ScriptTemplateDatabaseService:
     @staticmethod
     def create_template(db: Session, template: ScriptTemplateCreate) -> ScriptTemplate:
         try:
-            print(f"Creating template: {template.name}")
+            logger.info(f"Creating template: {template.name}")
             db_template = ScriptTemplate(**template.dict())
             db.add(db_template)
             db.commit()
             db.refresh(db_template)
-            print(f"Successfully created template {db_template.id}: {db_template.name}")
+            logger.info(f"Successfully created template {db_template.id}: {db_template.name}")
             return db_template
         except Exception as e:
-            print(f"Error creating template: {e}")
+            logger.error(f"Error creating template: {e}")
             db.rollback()
             raise
 
@@ -27,12 +31,12 @@ class ScriptTemplateService:
             if category:
                 query = query.filter(ScriptTemplate.category == category)
             templates = query.all()
-            print(
+            logger.info(
                 f"Retrieved {len(templates)} templates{f' for category {category}' if category else ''}"
             )
             return templates
         except Exception as e:
-            print(f"Error getting templates: {e}")
+            logger.error(f"Error getting templates: {e}")
             raise
 
     @staticmethod
@@ -45,10 +49,10 @@ class ScriptTemplateService:
                 )
                 .first()
             )
-            print(
+            logger.info(
                 f"Retrieved template {template_id}: {'Found' if template else 'Not found'}"
             )
             return template
         except Exception as e:
-            print(f"Error getting template {template_id}: {e}")
+            logger.error(f"Error getting template {template_id}: {e}")
             raise

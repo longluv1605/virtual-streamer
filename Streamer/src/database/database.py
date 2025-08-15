@@ -5,6 +5,9 @@ from sqlalchemy.orm import sessionmaker
 
 from src.models import Base, Product, ScriptTemplate
 
+import logging
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger(__name__)
 
 # Database configuration
 DATABASE_URL = "sqlite:///./virtual_streamer.db"
@@ -30,20 +33,20 @@ def create_tables():
     """Create all tables"""
     try:
         Base.metadata.create_all(bind=engine)
-        print("Database tables created successfully!")
+        logger.info("Database tables created successfully!")
     except Exception as e:
-        print(f"Error creating tables: {e}")
+        logger.error(f"Error creating tables: {e}")
         raise
 
 # Initialize database with sample data
 def init_sample_data(db: Session):
     """Initialize database with sample products and templates"""
     try:
-        print("Initializing sample data...")
+        logger.info("Initializing sample data...")
 
         # Check if data already exists
         if db.query(Product).first():
-            print("Sample data already exists, skipping initialization")
+            logger.info("Sample data already exists, skipping initialization")
             return
 
         # Sample products
@@ -132,10 +135,10 @@ def init_sample_data(db: Session):
             db.add(template)
 
             db.commit()
-            print("Sample data initialized successfully!")
+            logger.info("Sample data initialized successfully!")
 
     except Exception as e:
-        print(f"Error initializing sample data: {e}")
+        logger.error(f"Error initializing sample data: {e}")
         db.rollback()
         raise
 

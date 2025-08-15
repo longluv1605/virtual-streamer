@@ -46,6 +46,28 @@
                 max-height: 150px;
                 object-fit: cover;
             }
+            .streaming-settings {
+                background: linear-gradient(135deg, #f8f9ff 0%, #e6f3ff 100%);
+                border: 1px solid #d0e8ff;
+                border-radius: 8px;
+                transition: all 0.3s ease;
+            }
+            .streaming-settings:hover {
+                box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15);
+            }
+            .streaming-settings .form-label {
+                font-weight: 600;
+                color: #0056b3;
+            }
+            .streaming-settings i {
+                margin-right: 5px;
+            }
+            .form-check-label {
+                font-weight: 500;
+            }
+            .form-text {
+                font-size: 0.75rem;
+            }
         </style>
     </head>
     <body>
@@ -402,6 +424,165 @@
                                         <p class="mt-2 mb-0">
                                             Đang tải sản phẩm...
                                         </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Streaming Settings -->
+                            <div class="mb-3">
+                                <h6 class="form-label text-primary">
+                                    <i class="fas fa-cogs"></i> Cài đặt
+                                    Streaming
+                                </h6>
+                                <div class="streaming-settings p-3">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="form-check mb-3">
+                                                <input
+                                                    class="form-check-input"
+                                                    type="checkbox"
+                                                    id="enableStreaming"
+                                                    value="1"
+                                                />
+                                                <label
+                                                    class="form-check-label"
+                                                    for="enableStreaming"
+                                                    data-bs-toggle="tooltip"
+                                                    data-bs-placement="top"
+                                                    title="Bật tính năng này để tự động phát video khi bắt đầu live. Nếu tắt, sẽ chỉ tạo nội dung mà không phát."
+                                                >
+                                                    <i
+                                                        class="fas fa-broadcast-tower"
+                                                    ></i>
+                                                    Bật streaming trực tiếp
+                                                </label>
+                                                <small
+                                                    class="form-text text-muted d-block"
+                                                >
+                                                    Tự động stream video khi
+                                                    live
+                                                </small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label
+                                                    for="waitTime"
+                                                    class="form-label"
+                                                >
+                                                    <i class="fas fa-clock"></i>
+                                                    Thời gian chờ (giây)
+                                                    <i
+                                                        class="fas fa-info-circle text-info"
+                                                        data-bs-toggle="tooltip"
+                                                        data-bs-placement="top"
+                                                        title="Thời gian chờ giữa việc chuyển từ giới thiệu sản phẩm này sang sản phẩm khác."
+                                                    ></i>
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    class="form-control"
+                                                    id="waitTime"
+                                                    value="10"
+                                                    min="1"
+                                                    max="60"
+                                                />
+                                                <small
+                                                    class="form-text text-muted"
+                                                >
+                                                    Thời gian chờ giữa các sản phẩm
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label
+                                                    for="fps"
+                                                    class="form-label"
+                                                >
+                                                    <i class="fas fa-video"></i>
+                                                    FPS (khung hình/giây)
+                                                    <i
+                                                        class="fas fa-info-circle text-info"
+                                                        data-bs-toggle="tooltip"
+                                                        data-bs-placement="top"
+                                                        title="Tốc độ khung hình cho video. 25 FPS là chuẩn cho video thông thường."
+                                                    ></i>
+                                                </label>
+                                                <select
+                                                    class="form-control"
+                                                    id="fps"
+                                                >
+                                                    <option value="4">
+                                                        4 FPS
+                                                    </option>
+                                                    <option value="8">
+                                                        8 FPS
+                                                    </option>
+                                                    <option value="12" selected>
+                                                        12 FPS 
+                                                    </option>
+                                                    <option value="20">
+                                                        20 FPS 
+                                                    </option>
+                                                    <option value="25">
+                                                        25 FPS 
+                                                    </option>
+                                                </select>
+                                                <small
+                                                    class="form-text text-muted"
+                                                >
+                                                    Tốc độ khung hình
+                                                </small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label
+                                                    for="batchSize"
+                                                    class="form-label"
+                                                >
+                                                    <i
+                                                        class="fas fa-layer-group"
+                                                    ></i>
+                                                    Batch Size
+                                                    <i
+                                                        class="fas fa-info-circle text-info"
+                                                        data-bs-toggle="tooltip"
+                                                        data-bs-placement="top"
+                                                        title="Số frame được xử lý cùng lúc. Giá trị cao = nhanh hơn nhưng cần nhiều VRAM. Giá trị thấp = chậm hơn nhưng ít VRAM."
+                                                    ></i>
+                                                </label>
+                                                <select
+                                                    class="form-control"
+                                                    id="batchSize"
+                                                >
+                                                    <option value="1">
+                                                        1 (2GB VRAM)
+                                                    </option>
+                                                    <option value="2">
+                                                        2 (4GB VRAM)
+                                                    </option>
+                                                    <option value="4" selected>
+                                                        4 (4GB VRAM - Khuyến
+                                                        nghị)
+                                                    </option>
+                                                    <option value="8">
+                                                        8 (8GB VRAM)
+                                                    </option>
+                                                    <option value="16">
+                                                        16 (16GB+ RAM)
+                                                    </option>
+                                                </select>
+                                                <small
+                                                    class="form-text text-muted"
+                                                >
+                                                    Số khung hình xử lý cùng lúc
+                                                </small>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

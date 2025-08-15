@@ -13,6 +13,14 @@ let databaseAvatars = []; // Avatars in database
 
 // Initialize app
 document.addEventListener("DOMContentLoaded", function () {
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(
+        document.querySelectorAll('[data-bs-toggle="tooltip"]')
+    );
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
     initWebSocket();
     loadDashboard();
     // loadProducts();
@@ -368,6 +376,7 @@ function displaySessions() {
                                 session.created_at
                             )}</small>
                         </p>
+                        ${getStreamingInfo(session)}
                     </div>
                     <div class="col-md-4 text-end">
                         <span class="badge ${getStatusBadgeClass(
@@ -394,18 +403,12 @@ function getSessionActions(session) {
                 <button class="btn btn-sm btn-warning mb-1" onclick="prepareSession(${session.id})">
                     <i class="fas fa-cog"></i> Chuẩn bị
                 </button><br>
-                <button class="btn btn-sm btn-outline-primary mb-1" onclick="viewSession(${session.id})">
-                    <i class="fas fa-eye"></i> Xem
-                </button>
             `;
         case "ready":
             return `
                 <button class="btn btn-sm btn-success mb-1" onclick="startSession(${session.id})">
                     <i class="fas fa-play"></i> Bắt đầu
                 </button><br>
-                <button class="btn btn-sm btn-outline-primary mb-1" onclick="viewSession(${session.id})">
-                    <i class="fas fa-eye"></i> Xem
-                </button>
             `;
         case "live":
             return `
@@ -416,12 +419,6 @@ function getSessionActions(session) {
                     <i class="fas fa-external-link-alt"></i> Live
                 </a>
             `;
-        case "completed":
-            return `
-                <button class="btn btn-sm btn-outline-primary mb-1" onclick="viewSession(${session.id})">
-                    <i class="fas fa-eye"></i> Xem
-                </button>
-            `;
         default:
             return "";
     }
@@ -430,11 +427,29 @@ function getSessionActions(session) {
 async function showCreateSessionModal() {
     document.getElementById("createSessionForm").reset();
 
+    // Reset streaming settings to default values
+    document.getElementById("enableStreaming").checked = false;
+    document.getElementById("waitTime").value = 10;
+    document.getElementById("fps").value = 25;
+    document.getElementById("batchSize").value = 4;
+
     // Show modal first
     const modal = new bootstrap.Modal(
         document.getElementById("createSessionModal")
     );
     modal.show();
+
+    // Initialize tooltips for the modal
+    setTimeout(() => {
+        var tooltipTriggerList = [].slice.call(
+            document.querySelectorAll(
+                '#createSessionModal [data-bs-toggle="tooltip"]'
+            )
+        );
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    }, 100);
 
     // Then load data asynchronously
     try {
@@ -533,11 +548,47 @@ async function createSession() {
         return;
     }
 
+    // Get streaming settings with validation
+    const enableStreaming = document.getElementById("enableStreaming").checked;
+    const waitTime = Math.max(
+        1,
+        Math.min(60, parseInt(document.getElementById("waitTime").value) || 10)
+    );
+    const fps = Math.max(
+        1,
+        Math.min(60, parseInt(document.getElementById("fps").value) || 25)
+    );
+    const batchSize = Math.max(
+        1,
+        Math.min(32, parseInt(document.getElementById("batchSize").value) || 4)
+    );
+
+    // Validate streaming settings
+    if (waitTime < 1 || waitTime > 60) {
+        showNotification("warning", "Thời gian chờ phải từ 1-60 giây");
+        return;
+    }
+
+    if (fps < 1 || fps > 60) {
+        showNotification("warning", "FPS phải từ 1-60");
+        return;
+    }
+
+    if (batchSize < 1 || batchSize > 32) {
+        showNotification("warning", "Batch size phải từ 1-32");
+        return;
+    }
+
     const formData = {
         title: document.getElementById("sessionTitle").value,
         description: document.getElementById("sessionDescription").value,
         avatar_path: avatarPath, // Use avatar_path instead of avatar_id
         product_ids: selectedProducts,
+        // New streaming settings - use backend field names
+        for_stream: enableStreaming,
+        wait_duration: waitTime,
+        fps: fps,
+        batch_size: batchSize,
     };
 
     console.log("Creating session with data:", formData);
@@ -607,6 +658,7 @@ async function startSession(sessionId) {
             showNotification("success", "Phiên live đã bắt đầu");
             loadSessions();
             loadDashboard();
+            window.location.href = `/live/${sessionId}`;
         } else {
             throw new Error("Failed to start session");
         }
@@ -711,6 +763,29 @@ function getStatusText(status) {
     return texts[status] || status;
 }
 
+function getStreamingInfo(session) {
+    if (!session || typeof session !== "object") {
+        return "";
+    }
+
+    const streamingBadge = session.for_stream
+        ? '<span class="badge bg-success me-1"><i class="fas fa-broadcast-tower"></i> Streaming</span>'
+        : '<span class="badge bg-secondary me-1"><i class="fas fa-pause"></i> Không stream</span>';
+
+    const fps = session.fps || session.stream_fps || 25;
+    const batchSize = session.batch_size || 4;
+    const waitTime = session.wait_duration || 10;
+
+    return `
+        <div class="mt-2">
+            ${streamingBadge}
+            <span class="badge bg-info me-1">${fps} FPS</span>
+            <span class="badge bg-warning me-1">Batch: ${batchSize}</span>
+            <span class="badge bg-light text-dark">Chờ: ${waitTime}s</span>
+        </div>
+    `;
+}
+
 function showNotification(type, message) {
     // Create notification element
     const notification = document.createElement("div");
@@ -796,7 +871,7 @@ async function loadDatabaseAvatarSelection() {
             const option = document.createElement("option");
             option.value = avatar.id; // Use avatar ID instead of path
             option.textContent = `${avatar.name} ${
-                avatar.is_prepared ? "✓" : "⏳"
+                avatar.is_prepared ? "Prepared" : "Pending"
             } (ID: ${avatar.id})`;
             if (!avatar.is_prepared) {
                 option.style.color = "#6c757d"; // Gray for unprepared

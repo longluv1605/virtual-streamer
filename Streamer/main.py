@@ -12,13 +12,34 @@ from src.database import (
     init_sample_data,
 )
 
+import logging
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
+    logger.info("Starting Virtual Streamer server...")
+    
+    # Initialize database
     db = next(get_db())
     init_sample_data(db)
     db.close()
+    
+    # Initialize MuseTalk models (optional, only if needed)
+    try:
+        from src.services.musetalk import initialize_musetalk_on_startup
+        logger.info("Initializing MuseTalk models...")
+        success = initialize_musetalk_on_startup()
+        if success:
+            logger.info("MuseTalk models loaded successfully")
+        else:
+            logger.warning("MuseTalk models failed to load - will use demo mode")
+    except Exception as e:
+        logger.error(f"MuseTalk initialization error: {e} - will use demo mode")
+    
+    logger.info("Server startup complete")
     yield
     # Shutdown (if needed)
 
@@ -60,14 +81,15 @@ async def admin_dashboard():
     return FileResponse("static/admin.html")
 
 
+@app.get("/products", response_class=HTMLResponse)
+async def products_page():
+    return FileResponse("static/products.html")
+
+
 @app.get("/live/{session_id:int}", response_class=HTMLResponse)
 async def live_session(session_id: int):
     return FileResponse("static/live.html")
 
-
-@app.get("/products", response_class=HTMLResponse)
-async def products_page():
-    return FileResponse("static/products.html")
 
 # Health check
 @app.get("/api/health")
@@ -77,4 +99,4 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="localhost", port=8000, reload=True)
+    uvicorn.run("main:app", host="localhost", port=8000, reload=False)

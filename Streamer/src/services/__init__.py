@@ -1,13 +1,7 @@
-from .avatar import AvatarService
-from .llm import LLMService
-from .musetalk import MuseTalkService
-from .stream import StreamProcessor
-from .tts import TTSService
+from .stream import stream_processor
+from .webrtc import webrtc_service
 
 __all__ = [
-    "AvatarService",
-    "LLMService", 
-    "MuseTalkService",
-    "StreamProcessor",
-    "TTSService",
+    "stream_processor",
+    "webrtc_service",
 ]

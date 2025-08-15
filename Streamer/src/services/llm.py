@@ -3,12 +3,14 @@ import aiohttp
 import openai
 from openai import AsyncOpenAI
 from typing import Optional
+import logging
 
 from src.models import Product, ScriptTemplate
 
 from dotenv import load_dotenv
 load_dotenv()
-
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger(__name__)
 
 class LLMService:
     """Service for LLM integration (OpenAI/Gemini)"""
@@ -29,10 +31,10 @@ class LLMService:
                 )
             else:
                 self.openai_client = None
-                print(
+                logger.warning(
                     "Warning: OpenAI API key not found. LLM features will use fallback scripts."
                 )
-                print("To use OpenAI, set the OPENAI_API_KEY environment variable.")
+                logger.warning("To use OpenAI, set the OPENAI_API_KEY environment variable.")
         else:
             self.openai_client = None
 
@@ -55,7 +57,7 @@ class LLMService:
             else:
                 raise ValueError(f"Unsupported LLM provider: {self.provider}")
         except Exception as e:
-            print(f"Error generating script: {e}")
+            logger.error(f"Error generating script: {e}")
             return self._fallback_script(product, template)
 
     def _create_prompt(
@@ -124,16 +126,16 @@ Hãy tạo script hoàn chỉnh dựa trên template và thông tin trên:
                 raise Exception("No choices returned from OpenAI")
 
         except openai.RateLimitError as e:
-            print(f"OpenAI Rate limit exceeded: {e}")
+            logger.error(f"OpenAI Rate limit exceeded: {e}")
             raise Exception("Rate limit exceeded. Please try again later.")
         except openai.APIConnectionError as e:
-            print(f"OpenAI API connection error: {e}")
+            logger.error(f"OpenAI API connection error: {e}")
             raise Exception("Failed to connect to OpenAI API.")
         except openai.AuthenticationError as e:
-            print(f"OpenAI Authentication error: {e}")
+            logger.error(f"OpenAI Authentication error: {e}")
             raise Exception("Invalid OpenAI API key.")
         except Exception as e:
-            print(f"OpenAI API error: {e}")
+            logger.error(f"OpenAI API error: {e}")
             raise
 
     async def _generate_gemini(self, prompt: str) -> str:

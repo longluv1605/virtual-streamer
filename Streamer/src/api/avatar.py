@@ -11,13 +11,17 @@ from typing import List
 from pathlib import Path
 import asyncio
 
-from ..database import get_db
+from ..database import get_db, AvatarDatabaseService
 from ..models import (
     AvatarCreate,
     AvatarUpdate,
     AvatarResponse,
 )
-from ..services import AvatarService
+
+import logging
+
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger(__name__)
 
 
 ####################################
@@ -133,10 +137,10 @@ async def list_database_avatars(
 ):
     """List all avatars in database"""
     try:
-        avatars = AvatarService.list_avatars(db, skip=skip, limit=limit)
+        avatars = AvatarDatabaseService.list_avatars(db, skip=skip, limit=limit)
         return avatars
     except Exception as e:
-        print(f"Error listing avatars: {e}")
+        logger.error(f"Error listing avatars: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -144,7 +148,7 @@ async def list_database_avatars(
 async def create_avatar(avatar_data: AvatarCreate, db: Session = Depends(get_db)):
     """Create or get existing avatar"""
     try:
-        avatar = AvatarService.get_or_create_avatar(
+        avatar = AvatarDatabaseService.get_or_create_avatar(
             db, video_path=avatar_data.video_path, name=avatar_data.name
         )
         # Update bbox_shift if provided
@@ -155,14 +159,14 @@ async def create_avatar(avatar_data: AvatarCreate, db: Session = Depends(get_db)
 
         return avatar
     except Exception as e:
-        print(f"Error creating avatar: {e}")
+        logger.error(f"Error creating avatar: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/database/{avatar_id}", response_model=AvatarResponse)
 async def get_avatar(avatar_id: int, db: Session = Depends(get_db)):
     """Get avatar by ID"""
-    avatar = AvatarService.get_avatar_by_id(db, avatar_id)
+    avatar = AvatarDatabaseService.get_avatar_by_id(db, avatar_id)
     if not avatar:
         raise HTTPException(status_code=404, detail="Avatar not found")
     return avatar
@@ -174,7 +178,7 @@ async def update_avatar(
 ):
     """Update avatar"""
     try:
-        avatar = AvatarService.get_avatar_by_id(db, avatar_id)
+        avatar = AvatarDatabaseService.get_avatar_by_id(db, avatar_id)
         if not avatar:
             raise HTTPException(status_code=404, detail="Avatar not found")
 
@@ -185,14 +189,12 @@ async def update_avatar(
             avatar.bbox_shift = avatar_update.bbox_shift
         if avatar_update.is_prepared is not None:
             avatar.is_prepared = avatar_update.is_prepared
-        if avatar_update.preparation_status:
-            avatar.preparation_status = avatar_update.preparation_status
 
         db.commit()
         db.refresh(avatar)
         return avatar
     except Exception as e:
-        print(f"Error updating avatar: {e}")
+        logger.error(f"Error updating avatar: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -202,7 +204,7 @@ async def prepare_avatar(
 ):
     """Prepare avatar for MuseTalk"""
     try:
-        avatar = AvatarService.get_avatar_by_id(db, avatar_id)
+        avatar = AvatarDatabaseService.get_avatar_by_id(db, avatar_id)
         if not avatar:
             raise HTTPException(status_code=404, detail="Avatar not found")
 
@@ -210,7 +212,7 @@ async def prepare_avatar(
             return {"message": "Avatar already prepared", "avatar_id": avatar_id}
 
         # Start background preparation
-        AvatarService.update_avatar_preparation_status(db, avatar_id, "processing")
+        AvatarDatabaseService.update_avatar_preparation_status(db, avatar_id, "processing")
 
         # TODO: Add actual preparation logic here
         # For now, just mark as prepared
@@ -219,7 +221,7 @@ async def prepare_avatar(
         return {"message": "Avatar preparation started", "avatar_id": avatar_id}
 
     except Exception as e:
-        print(f"Error preparing avatar: {e}")
+        logger.error(f"Error preparing avatar: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -233,30 +235,30 @@ async def _prepare_avatar_background(avatar_id: int):
 
         try:
             # Update status to processing
-            AvatarService.update_avatar_preparation_status(db, avatar_id, "processing")
+            AvatarDatabaseService.update_avatar_preparation_status(db, avatar_id, "processing")
 
             # TODO: Add actual MuseTalk preparation logic here
             # For now, just simulate preparation
             await asyncio.sleep(5)  # Simulate processing time
 
             # Mark as prepared
-            AvatarService.update_avatar_preparation_status(
+            AvatarDatabaseService.update_avatar_preparation_status(
                 db, avatar_id, "completed", is_prepared=True
             )
 
-            print(f"Avatar {avatar_id} preparation completed")
+            logger.info(f"Avatar {avatar_id} preparation completed")
 
         finally:
             db.close()
 
     except Exception as e:
-        print(f"Error in background avatar preparation: {e}")
+        logger.info(f"Error in background avatar preparation: {e}")
         # Mark as error if failed
         try:
             from src.models import SessionLocal
 
             db = SessionLocal()
-            AvatarService.update_avatar_preparation_status(db, avatar_id, "error")
+            AvatarDatabaseService.update_avatar_preparation_status(db, avatar_id, "error")
             db.close()
         except:
             pass

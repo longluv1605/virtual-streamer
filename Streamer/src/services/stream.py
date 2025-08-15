@@ -1,11 +1,17 @@
 from typing import Optional, List
+from sqlalchemy.orm import Session
 
 from src.models import ScriptTemplate, Avatar
 
 from .llm import LLMService
 from .tts import TTSService
-from .musetalk import MuseTalkService
+from .musetalk import MuseTalkService, get_musetalk_realtime_service
+from .webrtc import webrtc_service
+from ..database import StreamSessionDatabaseService
 
+import logging
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger(__name__)
 
 class StreamProcessor:
     """Main service to process stream sessions"""
@@ -17,39 +23,46 @@ class StreamProcessor:
 
     async def process_session(self, session_id: int, db_session) -> bool:
         """Process entire stream session"""
-        from src.database import StreamSessionService, ScriptTemplateService
+        from src.database import StreamSessionDatabaseService, ScriptTemplateDatabaseService
 
         try:
             # Get session and products
-            session = StreamSessionService.get_session(db_session, session_id)
+            session = StreamSessionDatabaseService.get_session(db_session, session_id)
             if not session:
-                print(f"Session {session_id} not found")
+                logger.warning(f"Session {session_id} not found")
                 return False
 
             # Get avatar
             avatar = session.avatar
             if not avatar:
-                print(f"Avatar not found for session {session_id}")
+                logger.warning(f"Avatar not found for session {session_id}")
                 return False
 
-            stream_products = StreamSessionService.get_session_products(
+            stream_products = StreamSessionDatabaseService.get_session_products(
                 db_session, session_id
             )
             if not stream_products:
-                print(f"No products found for session {session_id}")
+                logger.warning(f"No products found for session {session_id}")
                 return False
 
             # Get default template
-            templates = ScriptTemplateService.get_templates(db_session)
+            templates = ScriptTemplateDatabaseService.get_templates(db_session)
             default_template = templates[0] if templates else None
 
             if not default_template:
-                print("No script template found")
+                logger.warning("No script template found")
                 return False
 
             # Ensure avatar is prepared
             if not avatar.is_prepared:
-                print(f"Avatar {avatar.name} is not prepared...")
+                logger.warning(f"Avatar {avatar.name} is not prepared...")
+
+            if not session.for_stream:
+                logger.warning(f"Session is not realtime streaming...")
+
+            logger.info(
+                f"Prepare session with {session.stream_fps} FPS and size {session.batch_size}"
+            )
 
             # Process each product
             for stream_product in stream_products:
@@ -58,17 +71,20 @@ class StreamProcessor:
                     default_template,
                     avatar,
                     session_id,
+                    session.for_stream,
+                    session.stream_fps,
+                    session.batch_size,
                     db_session,
                 )
 
             # Update session status
-            StreamSessionService.update_session_status(db_session, session_id, "ready")
-            print(f"Session {session_id} processed successfully")
+            StreamSessionDatabaseService.update_session_status(db_session, session_id, "ready")
+            logger.info(f"Session {session_id} processed successfully")
             return True
 
         except Exception as e:
-            print(f"Error processing session {session_id}: {e}")
-            StreamSessionService.update_session_status(db_session, session_id, "error")
+            logger.error(f"Error processing session {session_id}: {e}")
+            StreamSessionDatabaseService.update_session_status(db_session, session_id, "error")
             return False
 
     async def process_question_answer(
@@ -83,36 +99,36 @@ class StreamProcessor:
 
         try:
             # Get session and avatar
-            from src.database import StreamSessionService, CommentService
+            from src.database import StreamSessionDatabaseService, CommentDatabaseService
 
-            session = StreamSessionService.get_session(db_session, session_id)
+            session = StreamSessionDatabaseService.get_session(db_session, session_id)
             if not session:
-                print(f"Session {session_id} not found")
+                logger.warning(f"Session {session_id} not found")
                 return None
 
             avatar = session.avatar
             if not avatar:
-                print(f"Avatar not found for session {session_id}")
+                logger.warning(f"Avatar not found for session {session_id}")
                 return None
 
             if not avatar.is_prepared:
-                print(
+                logger.warning(
                     f"Warning: Avatar {avatar.name} is not prepared, but proceeding..."
                 )
 
-            print(f"Processing Q&A for session {session_id}, comment {comment_id}")
-            print(f"Question: {question}")
+            logger.info(f"Processing Q&A for session {session_id}, comment {comment_id}")
+            logger.info(f"Question: {question}")
 
             # Generate answer using LLM
             answer = await self._generate_answer(question, context, session)
-            print(f"Generated answer: {answer}")
+            logger.info(f"Generated answer: {answer}")
 
             # Generate audio for answer
             audio_filename = f"answer_{session_id}_{comment_id}"
             audio_path = await self.tts_service.text_to_speech(answer, audio_filename)
 
             if not audio_path:
-                print("Failed to generate audio for answer")
+                logger.warning("Failed to generate audio for answer")
                 return None
 
             # Generate video using existing prepared avatar
@@ -123,17 +139,17 @@ class StreamProcessor:
 
             if video_path:
                 # Update comment with answer video path
-                CommentService.update_comment_answer_video(
+                CommentDatabaseService.update_comment_answer_video(
                     db_session, comment_id, video_path
                 )
-                print(f"Successfully generated answer video: {video_path}")
+                logger.info(f"Successfully generated answer video: {video_path}")
                 return video_path
             else:
-                print("Failed to generate answer video")
+                logger.warning("Failed to generate answer video")
                 return None
 
         except Exception as e:
-            print(
+            logger.error(
                 f"Error processing Q&A for session {session_id}, comment {comment_id}: {e}"
             )
             return None
@@ -183,7 +199,7 @@ Hãy trả lời:
                     return response.choices[0].message.content.strip()
 
         except Exception as e:
-            print(f"Error generating answer with LLM: {e}")
+            logger.error(f"Error generating answer with LLM: {e}")
 
         # Fallback answer
         return f"Cảm ơn bạn đã đặt câu hỏi! Đây là một câu hỏi rất hay. Chúng tôi sẽ hỗ trợ bạn tốt nhất có thể trong livestream này!"
@@ -191,9 +207,9 @@ Hãy trả lời:
     async def get_unanswered_questions(self, session_id: int, db_session) -> List[dict]:
         """Get all unanswered questions for a session"""
         try:
-            from src.database import CommentService
+            from src.database import CommentDatabaseService
 
-            questions = CommentService.get_unanswered_questions(db_session, session_id)
+            questions = CommentDatabaseService.get_unanswered_questions(db_session, session_id)
 
             return [
                 {
@@ -207,7 +223,7 @@ Hãy trả lời:
             ]
 
         except Exception as e:
-            print(f"Error getting unanswered questions for session {session_id}: {e}")
+            logger.error(f"Error getting unanswered questions for session {session_id}: {e}")
             return []
 
     async def _process_stream_product(
@@ -216,47 +232,168 @@ Hãy trả lời:
         template: ScriptTemplate,
         avatar: Avatar,
         session_id: int,
+        for_stream: bool,
+        stream_fps: int,
+        batch_size: int,
         db_session,
     ):
         """Process individual stream product"""
-        from src.database import StreamSessionService
+        from src.database import StreamSessionDatabaseService
 
         try:
             product = stream_product.product
 
             # Generate script
-            print(f"Generating script for {product.name}...")
+            logger.info(f"Generating script for {product.name}...")
             script = await self.llm_service.generate_product_script(product, template)
 
             # Generate audio
-            print(f"Generating audio for {product.name}...")
+            logger.info(f"Generating audio for {product.name}...")
             audio_filename = f"product_{session_id}_{product.id}"
             audio_path = await self.tts_service.text_to_speech(script, audio_filename)
-
-            # Generate video using avatar system
-            print(f"Generating video for {product.name} with avatar {avatar.name}...")
-            video_filename = f"output_{session_id}_{product.id}"
-            video_path = await self.musetalk_service.generate_video_with_avatar(
-                audio_path, avatar, session_id, product.id, video_filename
-            )
 
             # Update database
             update_data = {
                 "script_text": script,
                 "audio_path": audio_path,
-                "video_path": video_path,
                 "is_processed": True,
             }
 
-            StreamSessionService.update_stream_product(
+            if not for_stream:
+                # Generate video using avatar system
+                logger.info(
+                    f"Generating video for {product.name} with avatar {avatar.name}..."
+                )
+                video_filename = f"output_{session_id}_{product.id}"
+                video_path = await self.musetalk_service.generate_video_with_avatar(
+                    audio_path,
+                    stream_fps,
+                    batch_size,
+                    avatar,
+                    session_id,
+                    product.id,
+                    video_filename,
+                )
+                update_data["video_path"] = video_path
+
+            StreamSessionDatabaseService.update_stream_product(
                 db_session, stream_product.id, update_data
             )
 
-            print(f"Processed {product.name} successfully with avatar {avatar.name}")
+            logger.info(f"Processed {product.name} successfully with avatar {avatar.name}")
 
         except Exception as e:
-            print(f"Error processing stream product {stream_product.id}: {e}")
+            logger.error(f"Error processing stream product {stream_product.id}: {e}")
             # Mark as failed
-            StreamSessionService.update_stream_product(
+            StreamSessionDatabaseService.update_stream_product(
                 db_session, stream_product.id, {"is_processed": False}
             )
+
+    def start_realtime_session(self, db: Session, session_id: str):
+        """Start realtime stream session with MuseTalk integration."""
+        try:
+            # Tạo session và lấy queue
+            webrtc_service.ensure_session(session_id)
+            # video_q, audio_q = webrtc_service.get_producer_queues(session_id)
+            logger.info(
+                f"Realtime session {session_id} started..."
+            )
+        except Exception as e:
+            logger.error(f"Failed to start session {session_id}")
+            return {"status": "error", "detail": str(e)}
+
+        try:
+            musetalk_service = get_musetalk_realtime_service()
+            session = StreamSessionDatabaseService.get_session(db, session_id)
+            # fps = session.stream_fps
+            
+            # Create avatar
+            result = self.prepare_avatar_for_realtime(musetalk_service, session)
+            if not result:
+                return {"status": "error", "detail": "cannot create avatar..."}
+                
+        except Exception as e:
+            logger.error(f"Error create avatar: {e}")
+        
+        # TODO: Generate each product.
+        def _produce():
+        #     try:                
+        #         # Check if we have MuseTalk ready
+        #         if (musetalk_service.is_ready() and avatar_id):
+        #             video_path = 'C:/DOCUMENTS/virtual-streamer/MuseTalk/data/video/long.mp4'
+        #             musetalk_service.prepare_avatar(avatar_id, video_path)
+                    
+        #             print(f"Using MuseTalk for session {session_id}")
+        #             # Use MuseTalk for real generation
+        #             # musetalk_service.generate_frames_for_webrtc(
+        #             #     audio_path=audio_path,
+        #             #     video_queue=video_q,
+        #             #     audio_queue=audio_q,
+        #             #     fps=fps
+        #             # )
+                    
+        #         else:
+        #             print(f"Fallback to demo mode for session {session_id}")
+        #             # Fallback to demo generation
+        #             idx = 0
+
+        #             while idx < fps * 60:  # Demo 60 giây
+        #                 # Demo frame với text hiển thị thông tin
+        #                 frame = np.zeros((480, 640, 3), dtype=np.uint8)
+                        
+        #                 # Create demo pattern
+        #                 color_intensity = (idx * 3) % 255
+        #                 frame[:, :, 0] = color_intensity  # Red channel cycling
+                        
+        #                 # Add text overlay indicating demo mode
+        #                 import cv2
+        #                 cv2.putText(frame, f"DEMO MODE - Frame {idx}", 
+        #                           (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, 
+        #                           (255, 255, 255), 2)
+        #                 cv2.putText(frame, f"FPS: {fps}", 
+        #                           (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.7, 
+        #                           (255, 255, 255), 2)
+        #                 if avatar_id:
+        #                     cv2.putText(frame, f"Avatar: {avatar_id}", 
+        #                               (50, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.7, 
+        #                               (255, 255, 255), 2)
+
+        #                 # Demo audio với tone
+        #                 t = np.arange(chunk_len) / sample_rate
+        #                 audio = (0.1 * np.sin(2 * np.pi * 440 * t)).astype(np.float32)
+
+        #                 try:
+        #                     video_q.put((idx, frame), timeout=0.1)
+        #                     audio_q.put((idx, audio), timeout=0.1)
+        #                 except:
+        #                     pass  # Queue full, drop frame
+
+        #                 time.sleep(1 / fps)
+        #                 idx += 1
+
+        #     except Exception as e:
+        #         print(f"Producer thread error in session {session_id}: {e}")
+            pass
+
+        # threading.Thread(target=_produce, daemon=True).start()
+        return {"status": "realtime_started"}
+
+    def prepare_avatar_for_realtime(self, musetalk_service, session) -> bool:
+        """
+        Prepare avatar cho realtime streaming - gọi trước khi start session
+        """
+        try:
+            # Get session avatar info
+            avatar_id = session.avatar_id
+            avatar_video_path = session.avatar.video_path
+            avatar_preparation = not session.avatar.is_prepared
+            
+            # Create avatar
+            return musetalk_service.prepare_avatar(avatar_id, avatar_video_path, avatar_preparation)
+        except Exception as e:
+            logger.error(f"Error create avatar: {e}")
+            return False
+
+
+#######################################
+stream_processor = StreamProcessor()
