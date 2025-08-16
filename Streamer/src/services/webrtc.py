@@ -14,7 +14,8 @@ from aiortc import (
 from aiortc.contrib.media import MediaBlackhole
 
 import logging
-logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(message)s")
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] <%(name)s:%(lineno)d> - %(message)s")
 logger = logging.getLogger(__name__)
 
 
@@ -94,10 +95,12 @@ class WebRTCSession:
         audio_queue.put((idx, audio_chunk))
     """
 
-    def __init__(self, session_id: str):
+    def __init__(self, session_id: str, fps: int = 25, sample_rate: int = 16000):
         self.session_id = session_id
-        self.video_queue: Queue[VideoItem] = Queue(maxsize=120)  # ~5s @ 25fps
-        self.audio_queue: Queue[AudioItem] = Queue(maxsize=5000)  # tùy chunk size
+        self.fps = fps
+        self.sample_rate = sample_rate
+        self.video_queue: Queue[VideoItem] = Queue(maxsize=fps*5)  # ~5s @ 25fps
+        self.audio_queue: Queue[AudioItem] = Queue(maxsize=sample_rate*5)  # tùy chunk size
         self.pc: Optional[RTCPeerConnection] = None
         self._closed = False
         self._lock = threading.Lock()
@@ -118,12 +121,12 @@ class WebRTCService:
         self.sessions: Dict[str, WebRTCSession] = {}
 
     def create_or_get_session(
-        self, session_id: str
+        self, session_id: str, fps: int = 25, sample_rate: int = 16000
     ) -> WebRTCSession:
         """Tạo mới hoặc lấy session theo session_id."""
-        sess = self.sessions.get(session_id)
+        sess = self.get_session(session_id)
         if not sess:
-            sess = WebRTCSession(session_id)
+            sess = WebRTCSession(session_id, fps, sample_rate)
             self.sessions[session_id] = sess
             logger.info(f"Created WebRTC session {session_id})")
         else:
@@ -136,7 +139,7 @@ class WebRTCService:
 
     def get_producer_queues(self, session_id: str) -> Tuple[Queue, Queue]:
         """Lấy (video_queue, audio_queue) để producer put dữ liệu."""
-        sess = self.sessions.get(session_id)
+        sess = self.get_session(session_id)
         if not sess:
             raise KeyError(f"Session {session_id} chưa tồn tại")
         return sess.video_queue, sess.audio_queue
@@ -150,8 +153,8 @@ class WebRTCService:
         session_id: str,
         offer_sdp: str,
         offer_type: str,
-        fps: int,
-        sample_rate: int,
+        fps: int = 25,
+        sample_rate: int = 16000
     ) -> RTCSessionDescription:
         """Tạo answer SDP cho client từ offer."""
         try:

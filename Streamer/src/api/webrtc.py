@@ -9,7 +9,7 @@ router = APIRouter(prefix="/webrtc", tags=["webrtc"])
 
 import logging
 
-logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(message)s")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] <%(name)s:%(lineno)d> - %(message)s")
 logger = logging.getLogger(__name__)
 
 @router.post("/offer")
@@ -109,8 +109,7 @@ async def musetalk_status():
         service = get_musetalk_realtime_service()
         return {
             "initialized": service.is_ready(),
-            "current_avatar": service.get_current_avatar(),
-            "loaded_avatars": list(service._avatars.keys()) if service._avatar else []
+            "loaded_avatars": list(service._avatars.keys()) if service._avatars else []
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

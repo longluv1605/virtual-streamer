@@ -1,3 +1,6 @@
+import time
+import numpy as np
+import threading
 from typing import Optional, List
 from sqlalchemy.orm import Session
 
@@ -10,7 +13,8 @@ from .webrtc import webrtc_service
 from ..database import StreamSessionDatabaseService
 
 import logging
-logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(message)s")
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] <%(name)s:%(lineno)d> - %(message)s")
 logger = logging.getLogger(__name__)
 
 class StreamProcessor:
@@ -294,7 +298,7 @@ Hãy trả lời:
         try:
             # Tạo session và lấy queue
             webrtc_service.ensure_session(session_id)
-            # video_q, audio_q = webrtc_service.get_producer_queues(session_id)
+            video_q, audio_q = webrtc_service.get_producer_queues(session_id)
             logger.info(
                 f"Realtime session {session_id} started..."
             )
@@ -305,9 +309,10 @@ Hãy trả lời:
         try:
             musetalk_service = get_musetalk_realtime_service()
             session = StreamSessionDatabaseService.get_session(db, session_id)
-            # fps = session.stream_fps
+            avatar_id = session.avatar_id
             
             # Create avatar
+            # if not session.avatar.is_prepared:
             result = self.prepare_avatar_for_realtime(musetalk_service, session)
             if not result:
                 return {"status": "error", "detail": "cannot create avatar..."}
@@ -315,67 +320,71 @@ Hãy trả lời:
         except Exception as e:
             logger.error(f"Error create avatar: {e}")
         
-        # TODO: Generate each product.
         def _produce():
-        #     try:                
-        #         # Check if we have MuseTalk ready
-        #         if (musetalk_service.is_ready() and avatar_id):
-        #             video_path = 'C:/DOCUMENTS/virtual-streamer/MuseTalk/data/video/long.mp4'
-        #             musetalk_service.prepare_avatar(avatar_id, video_path)
-                    
-        #             print(f"Using MuseTalk for session {session_id}")
-        #             # Use MuseTalk for real generation
-        #             # musetalk_service.generate_frames_for_webrtc(
-        #             #     audio_path=audio_path,
-        #             #     video_queue=video_q,
-        #             #     audio_queue=audio_q,
-        #             #     fps=fps
-        #             # )
-                    
-        #         else:
-        #             print(f"Fallback to demo mode for session {session_id}")
-        #             # Fallback to demo generation
-        #             idx = 0
+            try:                
+                # Check if we have MuseTalk ready
+                if (musetalk_service.is_ready() and avatar_id):
+                    try:
+                        logger.info(f"Using MuseTalk for session {session_id}")
+                        # Use MuseTalk for real generation
+                        session_products = StreamSessionDatabaseService.get_session_products(db, session_id)
+                        fps = session.stream_fps
+                        batch_size = session.batch_size
+                        for product in session_products:
+                            musetalk_service.generate_frames_for_webrtc(
+                                audio_path=product.audio_path,
+                                video_queue=video_q,
+                                audio_queue=audio_q,
+                                fps=fps,
+                                batch_size=batch_size
+                            )
+                            time.sleep(session.wait_duration)
+                    except Exception as e:
+                        logger.error(f"Error produce musetalk realtime ...: {e}")
+                        raise e
+                else:
+                    logger.info(f"Fallback to demo mode for session {session_id}")
+                    # Fallback to demo generation
+                    idx = 0
 
-        #             while idx < fps * 60:  # Demo 60 giây
-        #                 # Demo frame với text hiển thị thông tin
-        #                 frame = np.zeros((480, 640, 3), dtype=np.uint8)
+                    while idx < fps * 60:  # Demo 60 giây
+                        # Demo frame với text hiển thị thông tin
+                        frame = np.zeros((480, 640, 3), dtype=np.uint8)
                         
-        #                 # Create demo pattern
-        #                 color_intensity = (idx * 3) % 255
-        #                 frame[:, :, 0] = color_intensity  # Red channel cycling
+                        # Create demo pattern
+                        color_intensity = (idx * 3) % 255
+                        frame[:, :, 0] = color_intensity  # Red channel cycling
                         
-        #                 # Add text overlay indicating demo mode
-        #                 import cv2
-        #                 cv2.putText(frame, f"DEMO MODE - Frame {idx}", 
-        #                           (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, 
-        #                           (255, 255, 255), 2)
-        #                 cv2.putText(frame, f"FPS: {fps}", 
-        #                           (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.7, 
-        #                           (255, 255, 255), 2)
-        #                 if avatar_id:
-        #                     cv2.putText(frame, f"Avatar: {avatar_id}", 
-        #                               (50, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.7, 
-        #                               (255, 255, 255), 2)
+                        # Add text overlay indicating demo mode
+                        import cv2
+                        cv2.putText(frame, f"DEMO MODE - Frame {idx}", 
+                                  (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, 
+                                  (255, 255, 255), 2)
+                        cv2.putText(frame, f"FPS: {fps}", 
+                                  (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.7, 
+                                  (255, 255, 255), 2)
+                        if avatar_id:
+                            cv2.putText(frame, f"Avatar: {avatar_id}", 
+                                      (50, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.7, 
+                                      (255, 255, 255), 2)
 
-        #                 # Demo audio với tone
-        #                 t = np.arange(chunk_len) / sample_rate
-        #                 audio = (0.1 * np.sin(2 * np.pi * 440 * t)).astype(np.float32)
+                        # Demo audio với tone
+                        # t = np.arange(chunk_len) / sample_rate
+                        # audio = (0.1 * np.sin(2 * np.pi * 440 * t)).astype(np.float32)
 
-        #                 try:
-        #                     video_q.put((idx, frame), timeout=0.1)
-        #                     audio_q.put((idx, audio), timeout=0.1)
-        #                 except:
-        #                     pass  # Queue full, drop frame
+                        try:
+                            video_q.put((idx, frame), timeout=0.1)
+                            # audio_q.put((idx, audio), timeout=0.1)
+                        except:
+                            pass  # Queue full, drop frame
 
-        #                 time.sleep(1 / fps)
-        #                 idx += 1
+                        time.sleep(1 / fps)
+                        idx += 1
 
-        #     except Exception as e:
-        #         print(f"Producer thread error in session {session_id}: {e}")
-            pass
+            except Exception as e:
+                print(f"Producer thread error in session {session_id}: {e}")
 
-        # threading.Thread(target=_produce, daemon=True).start()
+        threading.Thread(target=_produce, daemon=True).start()
         return {"status": "realtime_started"}
 
     def prepare_avatar_for_realtime(self, musetalk_service, session) -> bool:
@@ -387,9 +396,11 @@ Hãy trả lời:
             avatar_id = session.avatar_id
             avatar_video_path = session.avatar.video_path
             avatar_preparation = not session.avatar.is_prepared
+            fps = session.stream_fps
+            batch_size = session.batch_size
             
             # Create avatar
-            return musetalk_service.prepare_avatar(avatar_id, avatar_video_path, avatar_preparation)
+            return musetalk_service.prepare_avatar(avatar_id, avatar_video_path, avatar_preparation, fps, batch_size)
         except Exception as e:
             logger.error(f"Error create avatar: {e}")
             return False

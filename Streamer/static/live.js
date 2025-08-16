@@ -979,5 +979,5 @@ async function ensureRealtimeAndWebRTC() {
     }
     
     const fps = currentSession?.fps || 25;
-    // await startWebRTC(sessionId, fps);
+    await startWebRTC(sessionId, fps);
 }
