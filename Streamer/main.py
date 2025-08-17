@@ -13,7 +13,11 @@ from src.database import (
 )
 
 import logging
-logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(message)s")
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s [%(levelname)s] <%(name)s:%(lineno)d> - %(message)s",
+)
 logger = logging.getLogger(__name__)
 
 
@@ -21,15 +25,16 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting Virtual Streamer server...")
-    
+
     # Initialize database
     db = next(get_db())
     init_sample_data(db)
     db.close()
-    
+
     # Initialize MuseTalk models (optional, only if needed)
     try:
         from src.services.musetalk import initialize_musetalk_on_startup
+
         logger.info("Initializing MuseTalk models...")
         success = initialize_musetalk_on_startup()
         if success:
@@ -38,7 +43,7 @@ async def lifespan(app: FastAPI):
             logger.warning("MuseTalk models failed to load - will use demo mode")
     except Exception as e:
         logger.error(f"MuseTalk initialization error: {e} - will use demo mode")
-    
+
     logger.info("Server startup complete")
     yield
     # Shutdown (if needed)
@@ -60,14 +65,27 @@ app.add_middleware(
 # Create tables and initialize data
 create_tables()
 
-# Mount static files
-app.mount("/static", StaticFiles(directory="static"), name="static")
-app.mount("/outputs", StaticFiles(directory="outputs"), name="outputs")
+# Create output directories first with absolute paths
+import os
 
-# Create output directories
-Path("outputs/audio").mkdir(parents=True, exist_ok=True)
-Path("outputs/videos").mkdir(parents=True, exist_ok=True)
-Path("static").mkdir(parents=True, exist_ok=True)
+current_dir = os.path.dirname(os.path.abspath(__file__))
+outputs_dir = os.path.join(current_dir, "outputs")
+static_dir = os.path.join(current_dir, "static")
+
+print(f"Current working directory: {os.getcwd()}")
+print(f"Script directory: {current_dir}")
+print(f"Outputs directory: {outputs_dir}")
+
+Path(outputs_dir, "audio").mkdir(parents=True, exist_ok=True)
+Path(outputs_dir, "videos").mkdir(parents=True, exist_ok=True)
+Path(static_dir).mkdir(parents=True, exist_ok=True)
+
+print(f"Created directories - outputs exists: {os.path.exists(outputs_dir)}")
+print(f"Audio dir exists: {os.path.exists(os.path.join(outputs_dir, 'audio'))}")
+
+# Mount static files
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
+app.mount("/outputs", StaticFiles(directory=outputs_dir), name="outputs")
 
 
 # Serve frontend
@@ -99,4 +117,5 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run("main:app", host="localhost", port=8000, reload=False)

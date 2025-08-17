@@ -888,38 +888,256 @@ function handleWebSocketMessage(data) {
     }
 }
 
+// Audio Player Class
+class AudioPlayer {
+    constructor() {
+        this.audio = null;
+        this.isReady = false;
+        this.autoStarted = false;
+    }
+
+    async loadAudio(audioUrl) {
+        if (!audioUrl) {
+            console.warn("No audio URL provided");
+            return false;
+        }
+
+        console.log("AudioPlayer: Loading audio from URL:", audioUrl);
+
+        // Convert relative URL to absolute if needed
+        const absoluteAudioUrl = audioUrl.startsWith("/")
+            ? `${window.location.origin}${audioUrl}`
+            : audioUrl;
+        console.log("AudioPlayer: Absolute URL:", absoluteAudioUrl);
+
+        try {
+            this.audio = new Audio(absoluteAudioUrl);
+            this.audio.preload = "auto";
+            this.audio.autoplay = false;
+            this.audio.muted = false;
+
+            return new Promise((resolve) => {
+                this.audio.addEventListener(
+                    "canplaythrough",
+                    () => {
+                        console.log("Audio loaded and ready to play");
+                        this.isReady = true;
+                        resolve(true);
+                    },
+                    { once: true }
+                );
+
+                this.audio.addEventListener(
+                    "error",
+                    (e) => {
+                        console.error("Audio load error:", e);
+                        console.error("Failed audio URL was:", audioUrl);
+                        console.error("Absolute URL was:", absoluteAudioUrl);
+                        console.error("Audio element src:", this.audio.src);
+                        resolve(false);
+                    },
+                    { once: true }
+                );
+            });
+        } catch (error) {
+            console.error("Error creating audio element:", error);
+            return false;
+        }
+    }
+
+    autoStart() {
+        if (this.isReady && !this.autoStarted) {
+            this.autoStarted = true;
+            this.audio.play().catch((e) => {
+                console.warn("Auto-start audio failed:", e);
+            });
+            console.log("Audio auto-started");
+        }
+    }
+
+    get currentTime() {
+        return this.audio ? this.audio.currentTime : 0;
+    }
+
+    get paused() {
+        return this.audio ? this.audio.paused : true;
+    }
+
+    play() {
+        if (this.audio && this.isReady) {
+            this.audio
+                .play()
+                .catch((e) => console.warn("Audio play failed:", e));
+        }
+    }
+
+    pause() {
+        if (this.audio && this.isReady) {
+            this.audio.pause();
+        }
+    }
+}
+
+// Video Audio Sync Controller
+class VideoAudioSync {
+    constructor(videoEl, audioPlayer, fps, threshold = 0.1) {
+        this.videoEl = videoEl;
+        this.audioPlayer = audioPlayer;
+        this.fps = fps;
+        this.threshold = threshold;
+        this.presentedFrames = 0;
+        this.isActive = false;
+        this.frameCallbackActive = false;
+
+        console.log(
+            `VideoAudioSync initialized: fps=${fps}, threshold=${threshold}`
+        );
+    }
+
+    start() {
+        if (this.isActive) return;
+        this.isActive = true;
+
+        // Start frame callback for precise video tracking
+        this.setupFrameCallback();
+
+        // Start sync monitoring
+        this.startSyncMonitoring();
+
+        console.log("VideoAudioSync started");
+    }
+
+    setupFrameCallback() {
+        if (!this.videoEl || this.frameCallbackActive) return;
+
+        // Check if browser supports requestVideoFrameCallback
+        if (typeof this.videoEl.requestVideoFrameCallback !== "function") {
+            console.warn(
+                "requestVideoFrameCallback not supported, falling back to basic sync"
+            );
+            return;
+        }
+
+        this.frameCallbackActive = true;
+
+        const onFrame = (now, metadata) => {
+            if (!this.isActive) return;
+
+            this.presentedFrames = metadata.presentedFrames || 0;
+
+            // Continue callback for next frame
+            if (this.frameCallbackActive) {
+                this.videoEl.requestVideoFrameCallback(onFrame);
+            }
+        };
+
+        this.videoEl.requestVideoFrameCallback(onFrame);
+        console.log("Frame callback setup completed");
+    }
+
+    startSyncMonitoring() {
+        // Monitor sync every 100ms for smooth audio control
+        this.syncInterval = setInterval(() => {
+            this.performSync();
+        }, 100);
+    }
+
+    performSync() {
+        if (!this.audioPlayer || !this.audioPlayer.isReady) return;
+
+        // Calculate current video time based on presented frames
+        const videoTime = this.presentedFrames / this.fps;
+        const audioTime = this.audioPlayer.currentTime;
+
+        // Condition 1: Audio only starts when frame_idx >= 0 (video has started)
+        if (this.presentedFrames > 0 && !this.audioPlayer.autoStarted) {
+            this.audioPlayer.autoStart();
+            return;
+        }
+
+        // Skip sync if audio hasn't started yet
+        if (!this.audioPlayer.autoStarted) return;
+
+        // Condition 2: Audio at time i can only play when frame_idx/fps >= i + threshold
+        // This ensures audio doesn't get too far ahead of video
+        const videoTimeWithThreshold = videoTime + this.threshold;
+        const shouldAudioPlay = audioTime <= videoTimeWithThreshold;
+
+        if (!shouldAudioPlay && !this.audioPlayer.paused) {
+            // Audio is too far ahead, pause it
+            this.audioPlayer.pause();
+            console.log(
+                `Audio paused: audioTime=${audioTime.toFixed(
+                    2
+                )}s, videoTime=${videoTime.toFixed(2)}s, threshold=${
+                    this.threshold
+                }s, frames=${this.presentedFrames}`
+            );
+        } else if (shouldAudioPlay && this.audioPlayer.paused) {
+            // Audio can resume playing
+            this.audioPlayer.play();
+            console.log(
+                `Audio resumed: audioTime=${audioTime.toFixed(
+                    2
+                )}s, videoTime=${videoTime.toFixed(2)}s, threshold=${
+                    this.threshold
+                }s, frames=${this.presentedFrames}`
+            );
+        }
+    }
+
+    stop() {
+        this.isActive = false;
+        this.frameCallbackActive = false;
+
+        if (this.syncInterval) {
+            clearInterval(this.syncInterval);
+            this.syncInterval = null;
+        }
+
+        console.log("VideoAudioSync stopped");
+    }
+
+    getStatus() {
+        return {
+            isActive: this.isActive,
+            presentedFrames: this.presentedFrames,
+            videoTime: this.presentedFrames / this.fps,
+            audioTime: this.audioPlayer ? this.audioPlayer.currentTime : 0,
+            audioReady: this.audioPlayer ? this.audioPlayer.isReady : false,
+            audioAutoStarted: this.audioPlayer
+                ? this.audioPlayer.autoStarted
+                : false,
+        };
+    }
+}
+
+// Global audio player and sync controller
+let globalAudioPlayer = null;
+let globalSyncController = null;
+
 async function startWebRTC(sessionId, fps = 25) {
     if (window._webrtcStarted) return;
     const pc = new RTCPeerConnection();
 
     const videoEl = document.getElementById("videoPlayer");
+
     pc.ontrack = (e) => {
         if (e.track.kind === "video") {
             const ms = videoEl.srcObject || new MediaStream();
             ms.addTrack(e.track);
             videoEl.srcObject = ms;
+
+            // Initialize audio sync when video track is received
+            initializeAudioSync(videoEl, fps);
         }
-        // else if (e.track.kind === "audio") {
-        //     // Nếu backend sau này thêm audio track
-        //     let audioEl = document.getElementById("remoteAudio");
-        //     if (!audioEl) {
-        //         audioEl = document.createElement("audio");
-        //         audioEl.id = "remoteAudio";
-        //         audioEl.autoplay = true;
-        //         document.body.appendChild(audioEl);
-        //     }
-        //     const msA = audioEl.srcObject || new MediaStream();
-        //     msA.addTrack(e.track);
-        //     audioEl.srcObject = msA;
-        // }
     };
 
     console.log(`[${Date.now()}] Starting WebRTC with transceivers...`);
-    
-    // Add transceivers to indicate we want to receive video and audio
+
+    // Add transceivers to indicate we want to receive video only
     // This is crucial - without this, createOffer() won't include media lines
     pc.addTransceiver("video", { direction: "recvonly" });
-    pc.addTransceiver("audio", { direction: "recvonly" });
 
     console.log(
         "Created transceivers, PC transceivers count:",
@@ -955,6 +1173,73 @@ async function startWebRTC(sessionId, fps = 25) {
     window._pc = pc;
 }
 
+async function initializeAudioSync(videoEl, fps) {
+    if (globalAudioPlayer && globalSyncController) {
+        console.log("Audio sync already initialized");
+        return;
+    }
+
+    try {
+        // Get audio URL from realtime session
+        const audioUrl = window._realtimeAudioUrl;
+        if (!audioUrl) {
+            console.warn("No audio URL available for sync");
+            return;
+        }
+
+        console.log("Initializing audio sync with URL:", audioUrl);
+
+        // Create audio player
+        globalAudioPlayer = new AudioPlayer();
+        const audioLoaded = await globalAudioPlayer.loadAudio(audioUrl);
+
+        if (!audioLoaded) {
+            console.error("Failed to load audio for sync");
+            return;
+        }
+
+        // Create sync controller
+        globalSyncController = new VideoAudioSync(
+            videoEl,
+            globalAudioPlayer,
+            fps
+        );
+        globalSyncController.start();
+
+        console.log("Audio sync initialized successfully");
+
+        // Debug: Log sync status every 5 seconds
+        setInterval(() => {
+            if (globalSyncController) {
+                const status = globalSyncController.getStatus();
+                console.log("Sync Status:", status);
+            }
+        }, 5000);
+    } catch (error) {
+        console.error("Error initializing audio sync:", error);
+    }
+}
+
+// Cleanup function for when leaving the page
+function cleanupAudioSync() {
+    if (globalSyncController) {
+        globalSyncController.stop();
+        globalSyncController = null;
+    }
+
+    if (globalAudioPlayer && globalAudioPlayer.audio) {
+        globalAudioPlayer.audio.pause();
+        globalAudioPlayer.audio.src = "";
+        globalAudioPlayer = null;
+    }
+
+    console.log("Audio sync cleaned up");
+}
+
+// Cleanup on page unload
+window.addEventListener("beforeunload", cleanupAudioSync);
+window.addEventListener("pagehide", cleanupAudioSync);
+
 async function ensureRealtimeAndWebRTC() {
     if (window._webrtcStarted) {
         console.log("WebRTC started...");
@@ -962,22 +1247,36 @@ async function ensureRealtimeAndWebRTC() {
     }
     try {
         // Check MuseTalk status first
-        const statusRes = await fetch('/api/webrtc/musetalk/status');
+        const statusRes = await fetch("/api/webrtc/musetalk/status");
         const musetalkStatus = await statusRes.json();
-        console.log('MuseTalk status:', musetalkStatus);
-        
+        console.log("MuseTalk status:", musetalkStatus);
+
         // Prepare parameters for realtime start
         let realtimeParams = `session_id=${sessionId}`;
-        
-        // Khởi động realtime producer
+
+        // Khởi động realtime producer và lấy audio URL
         const realtimeUrl = `/api/webrtc/realtime/start?${realtimeParams}`;
-        await fetch(realtimeUrl, { method: "POST" });
+        const realtimeRes = await fetch(realtimeUrl, { method: "POST" });
+
+        if (realtimeRes.ok) {
+            const realtimeData = await realtimeRes.json();
+            console.log("Realtime response:", realtimeData);
+
+            // Store audio URL for later use
+            if (realtimeData.audio_url) {
+                window._realtimeAudioUrl = realtimeData.audio_url;
+                window._realtimeFps = realtimeData.fps || 25;
+                console.log("Audio URL stored:", realtimeData.audio_url);
+            } else {
+                console.warn("No audio URL in realtime response");
+            }
+        }
+
         console.log("Fetched realtime start with params:", realtimeParams);
-        
     } catch (e) {
         console.warn("Realtime start failed (có thể đã chạy):", e);
     }
-    
-    const fps = currentSession?.fps || 25;
-    // await startWebRTC(sessionId, fps);
+
+    const fps = window._realtimeFps || currentSession?.fps || 25;
+    await startWebRTC(sessionId, fps);
 }

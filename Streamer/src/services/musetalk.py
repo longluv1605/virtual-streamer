@@ -8,8 +8,13 @@ from ..database.avatar import AvatarDatabaseService
 from .avatar import Avatar
 
 import logging
-logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(message)s")
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] <%(name)s:%(lineno)d> - %(message)s",
+)
 logger = logging.getLogger(__name__)
+
 
 class MuseTalkService:
     """MuseTalk integration service"""
@@ -41,7 +46,9 @@ class MuseTalkService:
                 missing_files.append(file_path)
 
         if missing_files:
-            logger.warning(f"Warning: MuseTalk setup incomplete. Missing files/directories:")
+            logger.warning(
+                f"Warning: MuseTalk setup incomplete. Missing files/directories:"
+            )
             for missing in missing_files:
                 logger.warning(f"  - {missing}")
             logger.warning(
@@ -256,7 +263,9 @@ class MuseTalkService:
                             avatar.is_prepared = True
                             logger.info(f"Avatar {avatar.id} marked as prepared")
                         except Exception as e:
-                            logger.error(f"Warning: Could not update avatar status: {e}")
+                            logger.error(
+                                f"Warning: Could not update avatar status: {e}"
+                            )
                         finally:
                             db_session.close()
 
@@ -295,7 +304,9 @@ class MuseTalkService:
                                 import shutil
 
                                 shutil.move(alt_path, output_abs_path)
-                                logger.info(f"Alternative output moved to: {output_abs_path}")
+                                logger.info(
+                                    f"Alternative output moved to: {output_abs_path}"
+                                )
                                 break
 
                 finally:
@@ -365,6 +376,7 @@ class MuseTalkRealtimeService:
         self._models_loaded = False
         self.musetalk_path = Path("../MuseTalk")
         self._avatars = {}
+        self._current_avatar = None  # track currently active avatar
 
     def initialize_models(self, gpu_id=0, version="v15"):
         """
@@ -454,7 +466,12 @@ class MuseTalkRealtimeService:
             return False
 
     def prepare_avatar(
-        self, avatar_id: int, video_path: str, preparation: bool = True
+        self,
+        avatar_id: int,
+        video_path: str,
+        preparation: bool = True,
+        fps: int = 25,
+        batch_size: int = 4,
     ) -> bool:
         """
         Sử dụng Avatar class có sẵn từ MuseTalk để prepare avatar data
@@ -463,71 +480,85 @@ class MuseTalkRealtimeService:
             logger.warning("Models not loaded. Call initialize_models() first.")
             return False
 
+        key = str(avatar_id)
+
         # Check if avatar already prepared
-        if avatar_id in self._avatars:
-            logger.warning(f"Avatar {avatar_id} already prepared")
+        if key in self._avatars:
+            logger.info(f"Avatar {avatar_id} already prepared (cache hit)")
+            self._current_avatar = key
             return True
 
         logger.info(f"Preparing avatar: {avatar_id}")
+        logger.info(f"  video_path={video_path} preparation={preparation}")
 
         try:
-            self._avatars[str(avatar_id)] = Avatar(avatar_id, video_path, preparation, self.fp, self.vae)
-            logger.info(f"[Avatar {avatar_id}] prepared successfully")
-            return True
-
+            avatar_obj = Avatar(avatar_id, video_path, preparation)
+            success = avatar_obj.prepare_avatar(self.fp, self.vae)
         except Exception as e:
-            logger.error(f"Failed to prepare avatar {avatar_id}: {e}")
+            # Log full error; often JSON errors surface here
+            logger.error(
+                f"Exception during Avatar.prepare_avatar(): {e}", exc_info=True
+            )
+            return False
+
+        if success:
+            self._avatars[key] = avatar_obj
+            self._current_avatar = key
+            logger.info(f"[Avatar {avatar_id}] prepared successfully.")
+            return True
+        else:
+            logger.error(f"[Avatar {avatar_id}] preparation returned False")
             return False
 
     def generate_frames_for_webrtc(
         self,
         audio_path: str,
         video_queue,
-        audio_queue,
         fps: int = 25,
         batch_size: int = 4,
     ):
         """
         Sử dụng logic có sẵn từ MuseTalk để generate frames cho WebRTC
         """
-        if not self._current_avatar or self._current_avatar not in self._avatar_data:
-            logger.warning("No avatar prepared. Call prepare_avatar() first.")
-            return
-
         if not self._models_loaded:
             logger.warning("Models not loaded. Call initialize_models() first.")
             return
 
-        logger.info(f"Starting realtime generation for audio: {audio_path}")
+        if not self._current_avatar or self._current_avatar not in self._avatars:
+            logger.warning("No avatar prepared. Call prepare_avatar() first.")
+            return
 
+        logger.info(f"Starting realtime generation for audio: {audio_path}")
         try:
+            # Convert relative audio path to absolute before changing directories
+            if not os.path.isabs(audio_path):
+                audio_path = os.path.abspath(audio_path)
+
             musetalk_abs_path = os.path.abspath(str(self.musetalk_path))
             original_cwd = os.getcwd()
             os.chdir(musetalk_abs_path)
 
-            avatar = self._avatar_data[self._current_avatar]
-
-            # Sử dụng logic inference có sẵn từ MuseTalk
-            avatar.inference_for_webrtc(
-                audio_path=audio_path,
-                fps=fps,
-                video_queue=video_queue,
-                audio_queue=audio_queue,
-                device=self.device,
-                vae=self.vae,
-                unet=self.unet,
-                pe=self.pe,
-                timesteps=self.timesteps,
-                audio_processor=self.audio_processor,
-                whisper=self.whisper,
-                weight_dtype=self.weight_dtype,
+            current_avatar = self.get_current_avatar()
+            current_avatar.inference(
+                video_queue,
+                audio_path,
+                fps,
+                batch_size,
+                self.unet,
+                self.vae,
+                self.pe,
+                self.timesteps,
+                self.whisper,
+                self.audio_processor,
+                self.weight_dtype,
+                self.device,
             )
 
-            os.chdir(original_cwd)
-            logger.info(f"Realtime generation completed")
-
+            logger.info("Realtime generation completed successfully")
         except Exception as e:
-            logger.error(f"Realtime generation failed: {e}")
+            logger.error(f"Realtime generation failed: {e}", exc_info=True)
+            raise  # Re-raise exception to propagate failure
+        finally:
             try:
                 os.chdir(original_cwd)
             except:
@@ -539,7 +570,7 @@ class MuseTalkRealtimeService:
 
     def get_current_avatar(self):
         """Get avatar hiện tại"""
-        return self._current_avatar
+        return self._avatars[self._current_avatar]
 
 
 # Singleton instance
@@ -548,6 +579,7 @@ _musetalk_realtime_service = None
 
 def get_musetalk_realtime_service():
     """Get singleton instance của MuseTalk Realtime Service"""
+    logger.info("Getting Musetalk Realtime ...")
     global _musetalk_realtime_service
     if _musetalk_realtime_service is None:
         _musetalk_realtime_service = MuseTalkRealtimeService()
