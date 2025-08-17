@@ -342,7 +342,6 @@ class Avatar:
     def inference(
         self,
         video_queue,
-        audio_queue,
         audio_path,
         fps,
         batch_size,
@@ -373,7 +372,6 @@ class Avatar:
             video_num = len(whisper_chunks)
             self._generate(
                 video_queue,
-                audio_queue,
                 unet,
                 vae,
                 pe,
@@ -429,7 +427,6 @@ class Avatar:
     def _generate(
         self,
         video_queue,
-        audio_queue,
         unet,
         vae,
         pe,
@@ -456,7 +453,7 @@ class Avatar:
             # Create a sub-thread and start it
             process_thread = threading.Thread(
                 target=self._process_frames,
-                args=(video_queue, audio_queue, res_frame_queue, video_num),
+                args=(video_queue, res_frame_queue, video_num),
             )
             process_thread.start()
 
@@ -486,7 +483,7 @@ class Avatar:
             logger.error(f"Error in _generate: {e}")
             raise  # Re-raise to propagate error
 
-    def _process_frames(self, video_queue, audio_queue, res_frame_queue, video_len):
+    def _process_frames(self, video_queue, res_frame_queue, video_len):
         try:
             while True:
                 from musetalk.utils.blending import get_image_blending

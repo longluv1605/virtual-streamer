@@ -514,7 +514,6 @@ class MuseTalkRealtimeService:
         self,
         audio_path: str,
         video_queue,
-        audio_queue,
         fps: int = 25,
         batch_size: int = 4,
     ):
@@ -542,7 +541,6 @@ class MuseTalkRealtimeService:
             current_avatar = self.get_current_avatar()
             current_avatar.inference(
                 video_queue,
-                audio_queue,
                 audio_path,
                 fps,
                 batch_size,
