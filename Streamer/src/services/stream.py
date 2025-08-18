@@ -1,6 +1,7 @@
 import time
 import numpy as np
 import threading
+from pathlib import Path
 from typing import Optional, List
 from sqlalchemy.orm import Session
 
@@ -25,6 +26,7 @@ class StreamProcessor:
     """Main service to process stream sessions"""
 
     def __init__(self):
+        self.base_dir = Path('../Streamer')
         self.llm_service = LLMService()
         self.tts_service = TTSService(provider="gtts")
         self.musetalk_service = MuseTalkService()
@@ -315,7 +317,7 @@ Hãy trả lời:
                 db_session, stream_product.id, {"is_processed": False}
             )
 
-    def start_realtime_session(self, db: Session, session_id: str):
+    async def start_realtime_session(self, db: Session, session_id: str):
         """Start realtime stream session with MuseTalk integration."""
         try:
             # Tạo session và lấy queue
@@ -428,27 +430,82 @@ Hãy trả lời:
 
         threading.Thread(target=_produce, daemon=True).start()
 
-        # Get audio URL from session products
-        audio_url = None
+        # Get audio URLs from session products with timing information
+        audio_urls = []
+        cumulative_time = 0
         try:
             session_products = StreamSessionDatabaseService.get_session_products(
                 db, session_id
             )
-            if session_products and session_products[0].audio_path:
-                # Convert relative path to web URL
-                audio_path = session_products[0].audio_path
-                # Normalize path separators and check if already starts with outputs
-                normalized_path = audio_path.replace("\\", "/")
-                if normalized_path.startswith("outputs/"):
-                    audio_url = f"/{normalized_path}"
+            logger.info(
+                f"Found {len(session_products)} products for session {session_id}"
+            )
+
+            for i, product in enumerate(session_products):
+                product_id = product.id
+                audio_path = product.audio_path
+                product_name = product.product.name
+                logger.info(
+                    f"Product {product_id}: {product_name}, audio_path: {audio_path}"
+                )
+                if product.audio_path:
+                    # Convert relative path to web URL
+                    # Normalize path separators and check if already starts with outputs
+                    normalized_path = audio_path.replace("\\", "/")
+                    if normalized_path.startswith("outputs/"):
+                        audio_url = f"/{normalized_path}"
+                    else:
+                        audio_url = f"/outputs/audio/{normalized_path}"
+
+                    # Estimate audio duration (fallback if can't calculate exactly)
+                    estimated_duration = 30  # Default 30 seconds per product
+                    try:
+                        import os
+
+                        abs_audio_path = os.path.join(self.base_dir, audio_path)
+                        if os.path.exists(abs_audio_path):
+                            # Try to get actual duration
+                            import librosa
+
+                            y, sr = librosa.load(abs_audio_path, sr=None)  # giữ nguyên sample rate gốc
+                            duration = librosa.get_duration(y=y, sr=sr)  # hoặc len(y)/sr
+                            estimated_duration = max(
+                                duration, 10
+                            )  # At least 10 seconds
+                        else:
+                            logger.error(f"File {abs_audio_path} does not exist.")
+                    except Exception as e:
+                        logger.warning(
+                            f"Could not get audio duration for {product_name}: {e}"
+                        )
+
+                    audio_urls.append(
+                        {
+                            "product_id": product_id,
+                            "product_name": product_name,
+                            "audio_url": audio_url,
+                            "start_time": cumulative_time,
+                            "duration": estimated_duration,
+                            "order": i,
+                        }
+                    )
+
+                    # Add product duration + wait duration
+                    cumulative_time += estimated_duration + session.wait_duration
+
+                    logger.info(
+                        f"Added audio URL for {product_name}: {audio_url} (duration = {estimated_duration}), start_time: {cumulative_time - estimated_duration - session.wait_duration}s"
+                    )
                 else:
-                    audio_url = f"/outputs/audio/{normalized_path}"
+                    logger.warning(f"Product {product_name} has no audio_path")
+
+            logger.info(f"Total audio URLs prepared: {len(audio_urls)}")
         except Exception as e:
-            logger.warning(f"Could not get audio URL: {e}")
+            logger.error(f"Could not get audio URLs: {e}", exc_info=True)
 
         return {
             "status": "realtime_started",
-            "audio_url": audio_url,
+            "audio_urls": audio_urls,
             "fps": session.stream_fps,
         }
 
@@ -466,7 +523,7 @@ Hãy trả lời:
 
             # Create avatar
             return musetalk_service.prepare_avatar(
-                avatar_id, avatar_video_path, avatar_preparation, fps, batch_size
+                avatar_id, avatar_video_path, avatar_preparation
             )
         except Exception as e:
             logger.error(f"Error create avatar: {e}")

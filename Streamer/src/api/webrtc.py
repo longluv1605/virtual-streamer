@@ -74,7 +74,7 @@ def status(session_id: str):
 async def start_realtime(session_id: str, db: Session = Depends(get_db)):
     """Start realtime session với MuseTalk support"""
     try:
-        result = stream_processor.start_realtime_session(db, session_id)
+        result = await stream_processor.start_realtime_session(db, session_id)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

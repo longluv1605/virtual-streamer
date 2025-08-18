@@ -377,6 +377,7 @@ class MuseTalkRealtimeService:
         self.musetalk_path = Path("../MuseTalk")
         self._avatars = {}
         self._current_avatar = None  # track currently active avatar
+        self._global_frame_counter = 0  # monotonic frame counter
 
     def initialize_models(self, gpu_id=0, version="v15"):
         """
@@ -470,8 +471,6 @@ class MuseTalkRealtimeService:
         avatar_id: int,
         video_path: str,
         preparation: bool = True,
-        fps: int = 25,
-        batch_size: int = 4,
     ) -> bool:
         """
         Sử dụng Avatar class có sẵn từ MuseTalk để prepare avatar data
@@ -556,7 +555,21 @@ class MuseTalkRealtimeService:
                 self.audio_processor,
                 self.weight_dtype,
                 self.device,
+                self._global_frame_counter,  # Pass current global frame counter
             )
+
+            # Update global frame counter based on audio length
+            # Estimate frames from audio file duration
+            try:
+                import librosa
+
+                duration, _ = librosa.load(audio_path, sr=None)
+                frames_generated = int(duration * fps)
+                self._global_frame_counter += frames_generated
+            except Exception as e:
+                # Fallback: assume average duration
+                logger.warning(f"Could not estimate audio duration: {e}")
+                self._global_frame_counter += fps * 10  # Assume 10 seconds
 
             logger.info("Realtime generation completed successfully")
         except Exception as e:

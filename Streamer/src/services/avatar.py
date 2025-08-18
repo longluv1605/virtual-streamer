@@ -219,6 +219,7 @@ class Avatar:
                 key=lambda x: int(os.path.splitext(os.path.basename(x))[0]),
             )
             self.mask_list_cycle = read_imgs(input_mask_list)
+            self._update_avatar_status()
         except Exception as e:
             logger.error(f"Failed loading avatar...: {e}")
             raise
@@ -353,8 +354,10 @@ class Avatar:
         audio_processor,
         weight_dtype,
         device,
+        frame_offset=0,
     ):
         try:
+            self.frame_offset = frame_offset  # Store frame offset for use in queue
             logger.info("Start inference ...")
             ############################################## extract audio feature ##############################################
             start_time = time.time()
@@ -516,7 +519,9 @@ class Avatar:
                 )
 
                 try:
-                    video_queue.put((self.idx, combine_frame), timeout=0.1)
+                    video_queue.put(
+                        (self.idx + self.frame_offset, combine_frame), timeout=0.1
+                    )
                 except:
                     # Queue full, drop frame
                     pass

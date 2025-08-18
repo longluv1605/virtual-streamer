@@ -891,67 +891,151 @@ function handleWebSocketMessage(data) {
 // Audio Player Class
 class AudioPlayer {
     constructor() {
-        this.audio = null;
+        this.audioList = []; // List of audio objects
+        this.currentIndex = 0;
         this.isReady = false;
         this.autoStarted = false;
     }
 
-    async loadAudio(audioUrl) {
-        if (!audioUrl) {
-            console.warn("No audio URL provided");
+    async loadAudioList(audioUrls) {
+        if (!audioUrls || audioUrls.length === 0) {
+            console.warn("No audio URLs provided");
             return false;
         }
 
-        console.log("AudioPlayer: Loading audio from URL:", audioUrl);
+        console.log("AudioPlayer: Loading audio list:", audioUrls);
+        this.audioList = [];
 
-        // Convert relative URL to absolute if needed
-        const absoluteAudioUrl = audioUrl.startsWith("/")
-            ? `${window.location.origin}${audioUrl}`
-            : audioUrl;
-        console.log("AudioPlayer: Absolute URL:", absoluteAudioUrl);
+        for (const audioData of audioUrls) {
+            const audioUrl = audioData.audio_url;
+            console.log("AudioPlayer: Loading audio from URL:", audioUrl);
 
-        try {
-            this.audio = new Audio(absoluteAudioUrl);
-            this.audio.preload = "auto";
-            this.audio.autoplay = false;
-            this.audio.muted = false;
+            // Convert relative URL to absolute if needed
+            const absoluteAudioUrl = audioUrl.startsWith("/")
+                ? `${window.location.origin}${audioUrl}`
+                : audioUrl;
 
-            return new Promise((resolve) => {
-                this.audio.addEventListener(
-                    "canplaythrough",
-                    () => {
-                        console.log("Audio loaded and ready to play");
-                        this.isReady = true;
-                        resolve(true);
-                    },
-                    { once: true }
-                );
+            try {
+                const audio = new Audio(absoluteAudioUrl);
+                audio.preload = "auto";
+                audio.autoplay = false;
+                audio.muted = false;
 
-                this.audio.addEventListener(
-                    "error",
-                    (e) => {
-                        console.error("Audio load error:", e);
-                        console.error("Failed audio URL was:", audioUrl);
-                        console.error("Absolute URL was:", absoluteAudioUrl);
-                        console.error("Audio element src:", this.audio.src);
-                        resolve(false);
-                    },
-                    { once: true }
-                );
-            });
-        } catch (error) {
-            console.error("Error creating audio element:", error);
-            return false;
+                const loaded = await new Promise((resolve) => {
+                    audio.addEventListener(
+                        "canplaythrough",
+                        () => {
+                            console.log(
+                                `Audio ${audioData.product_name} loaded and ready`
+                            );
+                            resolve(true);
+                        },
+                        { once: true }
+                    );
+
+                    audio.addEventListener(
+                        "error",
+                        (e) => {
+                            console.error(
+                                `Audio load error for ${audioData.product_name}:`,
+                                e
+                            );
+                            resolve(false);
+                        },
+                        { once: true }
+                    );
+                });
+
+                if (loaded) {
+                    this.audioList.push({
+                        audio: audio,
+                        productId: audioData.product_id,
+                        productName: audioData.product_name,
+                        audioUrl: audioUrl,
+                        startTime: audioData.start_time || 0,
+                        duration: audioData.duration || 30,
+                        order: audioData.order || 0,
+                    });
+                }
+            } catch (error) {
+                console.error("Error creating audio element:", error);
+            }
         }
+
+        this.isReady = this.audioList.length > 0;
+        console.log(`AudioPlayer: Loaded ${this.audioList.length} audio files`);
+        return this.isReady;
+    }
+
+    getCurrentAudio() {
+        if (this.currentIndex < this.audioList.length) {
+            return this.audioList[this.currentIndex];
+        }
+        return null;
+    }
+
+    getAudioForTime(videoTime) {
+        // Find the correct audio based on video time
+        for (let i = 0; i < this.audioList.length; i++) {
+            const audioData = this.audioList[i];
+            const endTime = audioData.startTime + audioData.duration;
+
+            if (videoTime >= audioData.startTime && videoTime < endTime) {
+                return { audio: audioData, index: i };
+            }
+        }
+        return null;
+    }
+
+    switchToIndex(newIndex) {
+        if (
+            newIndex >= 0 &&
+            newIndex < this.audioList.length &&
+            newIndex !== this.currentIndex
+        ) {
+            const current = this.getCurrentAudio();
+            if (current && current.audio) {
+                current.audio.pause();
+                current.audio.currentTime = 0; // Reset current audio
+            }
+            this.currentIndex = newIndex;
+            console.log(
+                `AudioPlayer: Switched to audio ${this.currentIndex + 1}/${
+                    this.audioList.length
+                }: ${this.getCurrentAudio().productName}`
+            );
+            return this.getCurrentAudio();
+        }
+        return null;
+    }
+
+    switchToNext() {
+        if (this.currentIndex < this.audioList.length - 1) {
+            const current = this.getCurrentAudio();
+            if (current && current.audio) {
+                current.audio.pause();
+            }
+            this.currentIndex++;
+            console.log(
+                `AudioPlayer: Switched to audio ${this.currentIndex + 1}/${
+                    this.audioList.length
+                }`
+            );
+            return this.getCurrentAudio();
+        }
+        return null;
     }
 
     autoStart() {
         if (this.isReady && !this.autoStarted) {
             this.autoStarted = true;
-            this.audio.play().catch((e) => {
-                console.warn("Auto-start audio failed:", e);
-            });
-            console.log("Audio auto-started");
+            const current = this.getCurrentAudio();
+            if (current && current.audio) {
+                current.audio.play().catch((e) => {
+                    console.warn("Auto-start audio failed:", e);
+                });
+                console.log(`Audio auto-started: ${current.productName}`);
+            }
         }
     }
 
@@ -1047,41 +1131,110 @@ class VideoAudioSync {
 
         // Calculate current video time based on presented frames
         const videoTime = this.presentedFrames / this.fps;
-        const audioTime = this.audioPlayer.currentTime;
 
-        // Condition 1: Audio only starts when frame_idx >= 0 (video has started)
-        if (this.presentedFrames > 0 && !this.audioPlayer.autoStarted) {
-            this.audioPlayer.autoStart();
+        // Find the correct audio for current video time
+        const correctAudioInfo = this.audioPlayer.getAudioForTime(videoTime);
+        if (!correctAudioInfo) {
+            // No audio should be playing at this time
+            const currentAudio = this.audioPlayer.getCurrentAudio();
+            if (currentAudio && !currentAudio.audio.paused) {
+                currentAudio.audio.pause();
+                console.log(
+                    `Paused audio - no audio scheduled for time ${videoTime.toFixed(
+                        2
+                    )}s`
+                );
+            }
             return;
         }
 
-        // Skip sync if audio hasn't started yet
-        if (!this.audioPlayer.autoStarted) return;
+        const correctAudio = correctAudioInfo.audio;
+        const correctIndex = correctAudioInfo.index;
 
-        // Condition 2: Audio at time i can only play when frame_idx/fps >= i + threshold
+        // Switch to correct audio if needed
+        if (correctIndex !== this.audioPlayer.currentIndex) {
+            this.audioPlayer.switchToIndex(correctIndex);
+            console.log(
+                `Switched to ${
+                    correctAudio.productName
+                } for time ${videoTime.toFixed(2)}s`
+            );
+        }
+
+        const currentAudio = this.audioPlayer.getCurrentAudio();
+        if (!currentAudio) return;
+
+        // Calculate audio time relative to product start
+        const relativeVideoTime = videoTime - correctAudio.startTime;
+        const audioTime = currentAudio.audio.currentTime;
+
+        // Condition 1: Audio only starts when frame_idx >= 0 and we're in the correct time window
+        if (
+            this.presentedFrames > 0 &&
+            relativeVideoTime >= 0 &&
+            !this.audioPlayer.autoStarted
+        ) {
+            this.audioPlayer.autoStarted = true;
+            currentAudio.audio.play().catch((e) => {
+                console.warn("Auto-start audio failed:", e);
+            });
+            console.log(
+                `Audio auto-started: ${
+                    currentAudio.productName
+                } at video time ${videoTime.toFixed(2)}s`
+            );
+            return;
+        }
+
+        // Skip sync if audio hasn't started yet or we're not in a valid time window
+        if (!this.audioPlayer.autoStarted || relativeVideoTime < 0) return;
+
+        // Condition 2: Audio sync with video timing
+        // Audio should play at the correct relative time within the product duration
+        const expectedAudioTime = relativeVideoTime;
+        const timeDiff = Math.abs(audioTime - expectedAudioTime);
+
+        // If audio is significantly out of sync, adjust it
+        if (timeDiff > 0.5) {
+            // 500ms threshold
+            currentAudio.audio.currentTime = expectedAudioTime;
+            console.log(
+                `Audio time corrected: ${audioTime.toFixed(
+                    2
+                )}s -> ${expectedAudioTime.toFixed(2)}s for ${
+                    currentAudio.productName
+                }`
+            );
+        }
+
+        // Condition 3: Audio at time i can only play when frame_idx/fps >= i + threshold
         // This ensures audio doesn't get too far ahead of video
-        const videoTimeWithThreshold = videoTime + this.threshold;
+        const videoTimeWithThreshold = relativeVideoTime + this.threshold;
         const shouldAudioPlay = audioTime <= videoTimeWithThreshold;
 
-        if (!shouldAudioPlay && !this.audioPlayer.paused) {
+        if (!shouldAudioPlay && !currentAudio.audio.paused) {
             // Audio is too far ahead, pause it
-            this.audioPlayer.pause();
+            currentAudio.audio.pause();
             console.log(
                 `Audio paused: audioTime=${audioTime.toFixed(
                     2
-                )}s, videoTime=${videoTime.toFixed(2)}s, threshold=${
-                    this.threshold
-                }s, frames=${this.presentedFrames}`
+                )}s, relativeVideoTime=${relativeVideoTime.toFixed(
+                    2
+                )}s, threshold=${this.threshold}s, product=${
+                    currentAudio.productName
+                }`
             );
-        } else if (shouldAudioPlay && this.audioPlayer.paused) {
+        } else if (shouldAudioPlay && currentAudio.audio.paused) {
             // Audio can resume playing
-            this.audioPlayer.play();
+            currentAudio.audio.play();
             console.log(
                 `Audio resumed: audioTime=${audioTime.toFixed(
                     2
-                )}s, videoTime=${videoTime.toFixed(2)}s, threshold=${
-                    this.threshold
-                }s, frames=${this.presentedFrames}`
+                )}s, relativeVideoTime=${relativeVideoTime.toFixed(
+                    2
+                )}s, threshold=${this.threshold}s, product=${
+                    currentAudio.productName
+                }`
             );
         }
     }
@@ -1099,15 +1252,24 @@ class VideoAudioSync {
     }
 
     getStatus() {
+        const currentAudio = this.audioPlayer
+            ? this.audioPlayer.getCurrentAudio()
+            : null;
         return {
             isActive: this.isActive,
             presentedFrames: this.presentedFrames,
             videoTime: this.presentedFrames / this.fps,
-            audioTime: this.audioPlayer ? this.audioPlayer.currentTime : 0,
+            audioTime: currentAudio ? currentAudio.audio.currentTime : 0,
             audioReady: this.audioPlayer ? this.audioPlayer.isReady : false,
             audioAutoStarted: this.audioPlayer
                 ? this.audioPlayer.autoStarted
                 : false,
+            currentProduct: currentAudio ? currentAudio.productName : "none",
+            audioIndex: this.audioPlayer
+                ? `${this.audioPlayer.currentIndex + 1}/${
+                      this.audioPlayer.audioList.length
+                  }`
+                : "0/0",
         };
     }
 }
@@ -1180,22 +1342,24 @@ async function initializeAudioSync(videoEl, fps) {
     }
 
     try {
-        // Get audio URL from realtime session
-        const audioUrl = window._realtimeAudioUrl;
-        if (!audioUrl) {
-            console.warn("No audio URL available for sync");
+        // Get audio URLs from realtime session
+        const audioUrls = window._realtimeAudioUrls;
+        if (!audioUrls || audioUrls.length === 0) {
+            console.warn("No audio URLs available for sync");
             return;
         }
 
-        console.log("Initializing audio sync with URL:", audioUrl);
+        console.log("Initializing audio sync with URLs:", audioUrls);
 
         // Create audio player
         globalAudioPlayer = new AudioPlayer();
-        const audioLoaded = await globalAudioPlayer.loadAudio(audioUrl);
+        const audioLoaded = await globalAudioPlayer.loadAudioList(audioUrls);
 
         if (!audioLoaded) {
-            console.error("Failed to load audio for sync");
+            console.error("Failed to load audio list for sync");
             return;
+        } else {
+            console.log("Loaded audio list successfully...")
         }
 
         // Create sync controller
@@ -1262,13 +1426,13 @@ async function ensureRealtimeAndWebRTC() {
             const realtimeData = await realtimeRes.json();
             console.log("Realtime response:", realtimeData);
 
-            // Store audio URL for later use
-            if (realtimeData.audio_url) {
-                window._realtimeAudioUrl = realtimeData.audio_url;
+            // Store audio URLs for later use
+            if (realtimeData.audio_urls && realtimeData.audio_urls.length > 0) {
+                window._realtimeAudioUrls = realtimeData.audio_urls;
                 window._realtimeFps = realtimeData.fps || 25;
-                console.log("Audio URL stored:", realtimeData.audio_url);
+                console.log("Audio URLs stored:", realtimeData.audio_urls);
             } else {
-                console.warn("No audio URL in realtime response");
+                console.warn("No audio URLs in realtime response");
             }
         }
 
