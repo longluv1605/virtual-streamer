@@ -26,7 +26,7 @@ class StreamProcessor:
 
     def __init__(self):
         self.llm_service = LLMService()
-        self.tts_service = TTSService()
+        self.tts_service = TTSService(provider="gtts")
         self.musetalk_service = MuseTalkService()
 
     async def process_session(self, session_id: int, db_session) -> bool:

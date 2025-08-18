@@ -528,6 +528,10 @@ class MuseTalkRealtimeService:
             logger.warning("No avatar prepared. Call prepare_avatar() first.")
             return
 
+        if not audio_path:
+            logger.error("Audio path is None or empty. Cannot generate frames.")
+            return
+
         logger.info(f"Starting realtime generation for audio: {audio_path}")
         try:
             # Convert relative audio path to absolute before changing directories
