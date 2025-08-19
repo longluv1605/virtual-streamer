@@ -138,3 +138,24 @@ class TTSService:
                     logger.error(f"Fallback language also failed: {fallback_error}")
 
             return None
+
+    def processing_audio(self, input_path, output_path, speed_factor: float = 1.25):
+        import librosa
+        import soundfile as sf
+        
+        try:
+            output_path = self.output_dir / f"{output_path}"
+            
+            logger.info("Processing audio...")
+            # Read audio
+            y, sr = librosa.load(input_path, sr=None)
+            
+            # Speedup (time-stretch)
+            y_speedup = librosa.effects.time_stretch(y, rate=speed_factor)
+            
+            # Save
+            sf.write(output_path, y_speedup, sr)
+        except Exception as e:
+            logger.error(f"Error processing audio: {e}")
+        
+        return output_path
