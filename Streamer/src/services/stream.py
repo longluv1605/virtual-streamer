@@ -29,6 +29,7 @@ class StreamProcessor:
         self.base_dir = Path('../Streamer')
         self.llm_service = LLMService()
         self.tts_service = TTSService(provider="gtts")
+        self.musetalk_service = get_musetalk_realtime_service()
         
         # Track realtime generation status per session.
         # Key: session_id, Value: dict with keys 'is_generating' (bool) and 'product_id' (str or None)
@@ -54,6 +55,12 @@ class StreamProcessor:
             if not avatar:
                 logger.warning(f"Avatar not found for session {session_id}")
                 return False
+            try:           
+                self.prepare_avatar_for_realtime(session)
+                logger.info("Session's avatar is prepared...")
+            except Exception as e:
+                logger.error(f"Error preparing avatar for realtime: {e}")
+                return {"status": "error", "detail": "Failed to prepare avatar"}
 
             stream_products = StreamSessionDatabaseService.get_session_products(
                 db_session, session_id
@@ -153,7 +160,7 @@ class StreamProcessor:
             )
 
 
-    def prepare_avatar_for_realtime(self, musetalk_service, session) -> bool:
+    def prepare_avatar_for_realtime(self, session) -> bool:
         """
         Prepare avatar cho realtime streaming - gọi trước khi start session
         """
@@ -164,7 +171,7 @@ class StreamProcessor:
             avatar_preparation = not session.avatar.is_prepared
 
             # Create avatar
-            return musetalk_service.prepare_avatar(
+            return self.musetalk_service.prepare_avatar(
                 avatar_id, avatar_video_path, avatar_preparation
             )
         except Exception as e:
@@ -199,18 +206,17 @@ class StreamProcessor:
         try:
             logger.info("Starting product live generation...")
             session = StreamSessionDatabaseService.get_session(db, session_id)
-            musetalk_service = get_musetalk_realtime_service()
             
             if not session:
                 return {"status": "error", "detail": f"Session {session_id} not found"}
-            if not musetalk_service:
+            if not self.musetalk_service:
                 return {"status": "error", "detail": f"MuseTalk service is not available"} 
             
             try:           
-                self.prepare_avatar_for_realtime(musetalk_service, session)
+                self.prepare_avatar_for_realtime(session)
                 logger.info("Session's avatar is ready...")
             except Exception as e:
-                logger.error(f"Error preparing avatar for realtime: {e}")
+                logger.error(f"Error loading avatar for realtime: {e}")
                 return {"status": "error", "detail": "Failed to prepare avatar"}
 
             # Check if there is an ongoing generation
@@ -273,9 +279,9 @@ class StreamProcessor:
                 try:
                     # Use musetalk realtime service
                     # musetalk_service = get_musetalk_realtime_service()
-                    if musetalk_service.is_ready():
+                    if self.musetalk_service.is_ready():
                         try:
-                            musetalk_service.generate_frames_for_webrtc(
+                            self.musetalk_service.generate_frames_for_webrtc(
                                 audio_path=audio_path,
                                 video_queue=video_q,
                                 fps=fps,
