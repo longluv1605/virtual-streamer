@@ -9,7 +9,7 @@ from src.models import ScriptTemplate, Avatar
 
 from .llm import LLMService
 from .tts import TTSService
-from .musetalk import MuseTalkService, get_musetalk_realtime_service
+from .musetalk import get_musetalk_realtime_service
 from .webrtc import webrtc_service
 from ..database import StreamSessionDatabaseService
 
@@ -29,7 +29,11 @@ class StreamProcessor:
         self.base_dir = Path('../Streamer')
         self.llm_service = LLMService()
         self.tts_service = TTSService(provider="gtts")
-        self.musetalk_service = MuseTalkService()
+        
+        # Track realtime generation status per session.
+        # Key: session_id, Value: dict with keys 'is_generating' (bool) and 'product_id' (str or None)
+        # This allows the API layer to report whether a product is currently being generated.
+        self._realtime_status = {}
 
     async def process_session(self, session_id: int, db_session) -> bool:
         """Process entire stream session"""
@@ -84,9 +88,6 @@ class StreamProcessor:
                     default_template,
                     avatar,
                     session_id,
-                    session.for_stream,
-                    session.stream_fps,
-                    session.batch_size,
                     db_session,
                 )
 
@@ -104,163 +105,12 @@ class StreamProcessor:
             )
             return False
 
-    async def process_question_answer(
-        self,
-        session_id: int,
-        comment_id: int,
-        question: str,
-        db_session,
-        context: str = None,
-    ) -> Optional[str]:
-        """Process Q&A during live session - generate answer video using existing prepared avatar"""
-
-        try:
-            # Get session and avatar
-            from src.database import (
-                StreamSessionDatabaseService,
-                CommentDatabaseService,
-            )
-
-            session = StreamSessionDatabaseService.get_session(db_session, session_id)
-            if not session:
-                logger.warning(f"Session {session_id} not found")
-                return None
-
-            avatar = session.avatar
-            if not avatar:
-                logger.warning(f"Avatar not found for session {session_id}")
-                return None
-
-            if not avatar.is_prepared:
-                logger.warning(
-                    f"Warning: Avatar {avatar.name} is not prepared, but proceeding..."
-                )
-
-            logger.info(
-                f"Processing Q&A for session {session_id}, comment {comment_id}"
-            )
-            logger.info(f"Question: {question}")
-
-            # Generate answer using LLM
-            answer = await self._generate_answer(question, context, session)
-            logger.info(f"Generated answer: {answer}")
-
-            # Generate audio for answer
-            audio_filename = f"answer_{session_id}_{comment_id}"
-            audio_path = await self.tts_service.text_to_speech(answer, audio_filename)
-
-            if not audio_path:
-                logger.warning("Failed to generate audio for answer")
-                return None
-
-            # Generate video using existing prepared avatar
-            video_filename = f"answer_{session_id}_{comment_id}"
-            video_path = await self.musetalk_service.generate_video_with_avatar(
-                audio_path, avatar, session_id, f"qa_{comment_id}", video_filename
-            )
-
-            if video_path:
-                # Update comment with answer video path
-                CommentDatabaseService.update_comment_answer_video(
-                    db_session, comment_id, video_path
-                )
-                logger.info(f"Successfully generated answer video: {video_path}")
-                return video_path
-            else:
-                logger.warning("Failed to generate answer video")
-                return None
-
-        except Exception as e:
-            logger.error(
-                f"Error processing Q&A for session {session_id}, comment {comment_id}: {e}"
-            )
-            return None
-
-    async def _generate_answer(self, question: str, context: str, session) -> str:
-        """Generate answer for a question using LLM"""
-
-        # Create context-aware prompt
-        prompt = f"""
-Bạn là một người bán hàng livestream chuyên nghiệp, thân thiện và am hiểu sản phẩm. 
-Hãy trả lời câu hỏi của khách hàng một cách tự nhiên, hữu ích và khuyến khích mua hàng.
-
-Thông tin livestream:
-- Tiêu đề: {session.title}
-- Mô tả: {session.description or "Livestream bán hàng"}
-
-Câu hỏi của khách hàng: {question}
-
-{f"Bối cảnh thêm: {context}" if context else ""}
-
-Yêu cầu trả lời:
-1. Ngắn gọn, rõ ràng (10-15 giây khi đọc)
-2. Thân thiện, nhiệt tình
-3. Cung cấp thông tin hữu ích
-4. Khuyến khích tương tác tiếp tục
-5. Nếu có thể, gợi ý sản phẩm phù hợp
-
-Hãy trả lời:
-"""
-
-        try:
-            if self.llm_service.provider == "openai" and self.llm_service.openai_client:
-                response = await self.llm_service.openai_client.chat.completions.create(
-                    model="gpt-3.5-turbo",
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": "Bạn là chuyên gia livestream bán hàng thân thiện và chuyên nghiệp.",
-                        },
-                        {"role": "user", "content": prompt},
-                    ],
-                    max_tokens=200,
-                    temperature=0.7,
-                )
-
-                if response.choices and response.choices[0].message.content:
-                    return response.choices[0].message.content.strip()
-
-        except Exception as e:
-            logger.error(f"Error generating answer with LLM: {e}")
-
-        # Fallback answer
-        return f"Cảm ơn bạn đã đặt câu hỏi! Đây là một câu hỏi rất hay. Chúng tôi sẽ hỗ trợ bạn tốt nhất có thể trong livestream này!"
-
-    async def get_unanswered_questions(self, session_id: int, db_session) -> List[dict]:
-        """Get all unanswered questions for a session"""
-        try:
-            from src.database import CommentDatabaseService
-
-            questions = CommentDatabaseService.get_unanswered_questions(
-                db_session, session_id
-            )
-
-            return [
-                {
-                    "id": q.id,
-                    "username": q.username,
-                    "message": q.message,
-                    "timestamp": q.timestamp.isoformat(),
-                    "session_id": q.session_id,
-                }
-                for q in questions
-            ]
-
-        except Exception as e:
-            logger.error(
-                f"Error getting unanswered questions for session {session_id}: {e}"
-            )
-            return []
-
     async def _process_stream_product(
         self,
         stream_product,
         template: ScriptTemplate,
         avatar: Avatar,
         session_id: int,
-        for_stream: bool,
-        stream_fps: int,
-        batch_size: int,
         db_session,
     ):
         """Process individual stream product"""
@@ -285,23 +135,6 @@ Hãy trả lời:
                 "is_processed": True,
             }
 
-            if not for_stream:
-                # Generate video using avatar system
-                logger.info(
-                    f"Generating video for {product.name} with avatar {avatar.name}..."
-                )
-                video_filename = f"output_{session_id}_{product.id}"
-                video_path = await self.musetalk_service.generate_video_with_avatar(
-                    audio_path,
-                    stream_fps,
-                    batch_size,
-                    avatar,
-                    session_id,
-                    product.id,
-                    video_filename,
-                )
-                update_data["video_path"] = video_path
-
             StreamSessionDatabaseService.update_stream_product(
                 db_session, stream_product.id, update_data
             )
@@ -317,197 +150,6 @@ Hãy trả lời:
                 db_session, stream_product.id, {"is_processed": False}
             )
 
-    async def start_realtime_session(self, db: Session, session_id: str):
-        """Start realtime stream session with MuseTalk integration."""
-        try:
-            # Tạo session và lấy queue
-            webrtc_service.ensure_session(session_id)
-            video_q = webrtc_service.get_producer_queues(session_id)
-            logger.info(f"Realtime session {session_id} started...")
-        except Exception as e:
-            logger.error(f"Failed to start session {session_id}")
-            return {"status": "error", "detail": str(e)}
-
-        try:
-            musetalk_service = get_musetalk_realtime_service()
-            session = StreamSessionDatabaseService.get_session(db, session_id)
-            avatar_id = session.avatar_id
-
-            # Create avatar
-            # if not session.avatar.is_prepared:
-            result = self.prepare_avatar_for_realtime(musetalk_service, session)
-            if not result:
-                return {"status": "error", "detail": "cannot create avatar..."}
-
-        except Exception as e:
-            logger.error(f"Error create avatar: {e}")
-
-        def _produce():
-            try:
-                # Check if we have MuseTalk ready
-                if musetalk_service.is_ready() and avatar_id:
-                    try:
-                        logger.info(f"Using MuseTalk for session {session_id}")
-                        # Use MuseTalk for real generation
-                        session_products = (
-                            StreamSessionDatabaseService.get_session_products(
-                                db, session_id
-                            )
-                        )
-                        fps = session.stream_fps
-                        batch_size = session.batch_size
-                        for product in session_products:
-                            musetalk_service.generate_frames_for_webrtc(
-                                audio_path=product.audio_path,
-                                video_queue=video_q,
-                                fps=fps,
-                                batch_size=batch_size,
-                            )
-                            time.sleep(session.wait_duration)
-                    except Exception as e:
-                        logger.error(f"Error produce musetalk realtime ...: {e}")
-                        raise e
-                else:
-                    logger.info(f"Fallback to demo mode for session {session_id}")
-                    # Fallback to demo generation
-                    idx = 0
-
-                    while idx < fps * 60:  # Demo 60 giây
-                        # Demo frame với text hiển thị thông tin
-                        frame = np.zeros((480, 640, 3), dtype=np.uint8)
-
-                        # Create demo pattern
-                        color_intensity = (idx * 3) % 255
-                        frame[:, :, 0] = color_intensity  # Red channel cycling
-
-                        # Add text overlay indicating demo mode
-                        import cv2
-
-                        cv2.putText(
-                            frame,
-                            f"DEMO MODE - Frame {idx}",
-                            (50, 50),
-                            cv2.FONT_HERSHEY_SIMPLEX,
-                            1,
-                            (255, 255, 255),
-                            2,
-                        )
-                        cv2.putText(
-                            frame,
-                            f"FPS: {fps}",
-                            (50, 100),
-                            cv2.FONT_HERSHEY_SIMPLEX,
-                            0.7,
-                            (255, 255, 255),
-                            2,
-                        )
-                        if avatar_id:
-                            cv2.putText(
-                                frame,
-                                f"Avatar: {avatar_id}",
-                                (50, 150),
-                                cv2.FONT_HERSHEY_SIMPLEX,
-                                0.7,
-                                (255, 255, 255),
-                                2,
-                            )
-
-                        # Demo audio với tone
-                        # t = np.arange(chunk_len) / sample_rate
-                        # audio = (0.1 * np.sin(2 * np.pi * 440 * t)).astype(np.float32)
-
-                        try:
-                            video_q.put((idx, frame), timeout=0.1)
-                            # audio_q.put((idx, audio), timeout=0.1)
-                        except:
-                            pass  # Queue full, drop frame
-
-                        time.sleep(1 / fps)
-                        idx += 1
-
-            except Exception as e:
-                print(f"Producer thread error in session {session_id}: {e}")
-
-        threading.Thread(target=_produce, daemon=True).start()
-
-        # Get audio URLs from session products with timing information
-        audio_urls = []
-        cumulative_time = 0
-        try:
-            session_products = StreamSessionDatabaseService.get_session_products(
-                db, session_id
-            )
-            logger.info(
-                f"Found {len(session_products)} products for session {session_id}"
-            )
-
-            for i, product in enumerate(session_products):
-                product_id = product.id
-                audio_path = product.audio_path
-                product_name = product.product.name
-                logger.info(
-                    f"Product {product_id}: {product_name}, audio_path: {audio_path}"
-                )
-                if product.audio_path:
-                    # Convert relative path to web URL
-                    # Normalize path separators and check if already starts with outputs
-                    normalized_path = audio_path.replace("\\", "/")
-                    if normalized_path.startswith("outputs/"):
-                        audio_url = f"/{normalized_path}"
-                    else:
-                        audio_url = f"/outputs/audio/{normalized_path}"
-
-                    # Estimate audio duration (fallback if can't calculate exactly)
-                    estimated_duration = 30  # Default 30 seconds per product
-                    try:
-                        import os
-
-                        abs_audio_path = os.path.join(self.base_dir, audio_path)
-                        if os.path.exists(abs_audio_path):
-                            # Try to get actual duration
-                            import librosa
-
-                            y, sr = librosa.load(abs_audio_path, sr=None)  # giữ nguyên sample rate gốc
-                            duration = librosa.get_duration(y=y, sr=sr)  # hoặc len(y)/sr
-                            estimated_duration = max(
-                                duration, 10
-                            )  # At least 10 seconds
-                        else:
-                            logger.error(f"File {abs_audio_path} does not exist.")
-                    except Exception as e:
-                        logger.warning(
-                            f"Could not get audio duration for {product_name}: {e}"
-                        )
-
-                    audio_urls.append(
-                        {
-                            "product_id": product_id,
-                            "product_name": product_name,
-                            "audio_url": audio_url,
-                            "start_time": cumulative_time,
-                            "duration": estimated_duration,
-                            "order": i,
-                        }
-                    )
-
-                    # Add product duration + wait duration
-                    cumulative_time += estimated_duration + session.wait_duration
-
-                    logger.info(
-                        f"Added audio URL for {product_name}: {audio_url} (duration = {estimated_duration}), start_time: {cumulative_time - estimated_duration - session.wait_duration}s"
-                    )
-                else:
-                    logger.warning(f"Product {product_name} has no audio_path")
-
-            logger.info(f"Total audio URLs prepared: {len(audio_urls)}")
-        except Exception as e:
-            logger.error(f"Could not get audio URLs: {e}", exc_info=True)
-
-        return {
-            "status": "realtime_started",
-            "audio_urls": audio_urls,
-            "fps": session.stream_fps,
-        }
 
     def prepare_avatar_for_realtime(self, musetalk_service, session) -> bool:
         """
@@ -518,8 +160,6 @@ Hãy trả lời:
             avatar_id = session.avatar_id
             avatar_video_path = session.avatar.video_path
             avatar_preparation = not session.avatar.is_prepared
-            fps = session.stream_fps
-            batch_size = session.batch_size
 
             # Create avatar
             return musetalk_service.prepare_avatar(
@@ -528,6 +168,167 @@ Hãy trả lời:
         except Exception as e:
             logger.error(f"Error create avatar: {e}")
             return False
+
+
+    # === New realtime methods for per-product generation ===
+    async def start_product(self, db: Session, session_id: str, product_id: str):
+        """
+        Start realtime generation for a single product. If a generation is already in progress for this
+        session, an error is returned. The method returns the audio URL, fps and estimated duration
+        for the requested product.
+
+        Parameters
+        ----------
+        db : Session
+            Database session for retrieving session and product info.
+        session_id : str
+            The session identifier.
+        product_id : str
+            The identifier of the product to generate frames for.
+
+        Returns
+        -------
+        dict
+            A dictionary containing the status of the operation and, on success, the audio URL
+            and FPS for the product.
+        """
+        # Make sure session exists and product belongs to the session
+        from src.database import StreamSessionDatabaseService
+        try:
+            logger.info("Starting product live generation...")
+            session = StreamSessionDatabaseService.get_session(db, session_id)
+            musetalk_service = get_musetalk_realtime_service()
+            
+            if not session:
+                return {"status": "error", "detail": f"Session {session_id} not found"}
+            if not musetalk_service:
+                return {"status": "error", "detail": f"MuseTalk service is not available"} 
+            
+            try:           
+                self.prepare_avatar_for_realtime(musetalk_service, session)
+                logger.info("Session's avatar is ready...")
+            except Exception as e:
+                logger.error(f"Error preparing avatar for realtime: {e}")
+                return {"status": "error", "detail": "Failed to prepare avatar"}
+
+            # Check if there is an ongoing generation
+            if self._realtime_status.get(session_id, {}).get("is_generating"):
+                return {"status": "error", "detail": "Another product is currently generating"}
+
+            # Retrieve the product within this session
+            # We use product_id as string; convert to int for lookup
+            try:
+                pid_int = int(product_id)
+            except Exception:
+                pid_int = product_id
+            products = StreamSessionDatabaseService.get_session_products(db, session_id)
+            stream_product = None
+            for sp in products:
+                if str(sp.id) == str(pid_int) or str(sp.product_id) == str(pid_int):
+                    stream_product = sp
+                    break
+            if not stream_product:
+                return {"status": "error", "detail": f"Product {product_id} not found in session"}
+
+            # Ensure audio is available for this product
+            audio_path = stream_product.audio_path
+            if not audio_path:
+                return {"status": "error", "detail": "No audio available for this product"}
+
+            # Get or create WebRTC session
+            webrtc_service.ensure_session(session_id)
+            video_q = webrtc_service.get_producer_queues(session_id)
+
+            # Mark generation in progress
+            self._realtime_status[session_id] = {
+                "is_generating": True,
+                "product_id": str(pid_int),
+            }
+
+            # Estimate duration for client (fallback to 30s)
+            estimated_duration = 30
+            try:
+                import os
+                import librosa
+
+                abs_audio_path = os.path.join(self.base_dir, audio_path)
+                if os.path.exists(abs_audio_path):
+                    y, sr = librosa.load(abs_audio_path, sr=None)
+                    estimated_duration = max(librosa.get_duration(y=y, sr=sr), 10)
+            except Exception as e:
+                logger.warning(f"Could not estimate audio duration for product {product_id}: {e}")
+
+            # Convert audio path to URL
+            normalized_path = audio_path.replace("\\", "/")
+            audio_url = normalized_path if normalized_path.startswith("/") else f"/{normalized_path}"
+
+            # Use session fps
+            fps = session.stream_fps or 25
+            batch_size = session.batch_size or 1
+
+            # Start producer thread for this product only
+            def _produce_single():
+                try:
+                    # Use musetalk realtime service
+                    # musetalk_service = get_musetalk_realtime_service()
+                    if musetalk_service.is_ready():
+                        try:
+                            musetalk_service.generate_frames_for_webrtc(
+                                audio_path=audio_path,
+                                video_queue=video_q,
+                                fps=fps,
+                                batch_size=batch_size,
+                            )
+                        except Exception as e:
+                            logger.error(f"Error generating frames for product {product_id}: {e}")
+                    else:
+                        # Fallback: generate dummy frames
+                        idx = 0
+                        total_frames = int(fps * estimated_duration)
+                        while idx < total_frames:
+                            frame = np.zeros((480, 640, 3), dtype=np.uint8)
+                            color_intensity = (idx * 3) % 255
+                            frame[:, :, 0] = color_intensity
+                            try:
+                                video_q.put((idx, frame), timeout=0.1)
+                            except:
+                                pass
+                            time.sleep(1 / fps)
+                            idx += 1
+                finally:
+                    # Mark generation finished
+                    self._realtime_status[session_id] = {
+                        "is_generating": False,
+                        "product_id": None,
+                    }
+
+            threading.Thread(target=_produce_single, daemon=True).start()
+
+            return {
+                "status": "started",
+                "audio_url": audio_url,
+                "fps": fps,
+                "duration": estimated_duration,
+            }
+        except Exception as e:
+            logger.error(f"Error starting product {product_id} for session {session_id}: {e}")
+            # On error, clear status
+            self._realtime_status[session_id] = {
+                "is_generating": False,
+                "product_id": None,
+            }
+            return {"status": "error", "detail": str(e)}
+
+    def realtime_status(self, session_id: str) -> dict:
+        """Return realtime generation status for a given session."""
+        status = self._realtime_status.get(session_id)
+        if not status:
+            return {"exists": False}
+        return {
+            "exists": True,
+            "is_generating": status.get("is_generating", False),
+            "product_id": status.get("product_id"),
+        }
 
 
 #######################################

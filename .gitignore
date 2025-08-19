@@ -7,3 +7,4 @@ MuseTalk
 *.db
 *test.py*
 **result**
+*log*

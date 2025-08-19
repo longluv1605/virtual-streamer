@@ -69,17 +69,6 @@ def status(session_id: str):
         logger.error("Error getting status for session %s", session_id)
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
-@router.post("/realtime/start")
-async def start_realtime(session_id: str, db: Session = Depends(get_db)):
-    """Start realtime session với MuseTalk support"""
-    try:
-        result = await stream_processor.start_realtime_session(db, session_id)
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @router.post("/avatar/prepare")
 async def prepare_avatar(avatar_id: str, video_path: str):
     """Prepare avatar cho realtime streaming"""
@@ -115,3 +104,33 @@ async def musetalk_status():
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/realtime/start")
+async def start_product(session_id: str, product_id: str, db: Session = Depends(get_db)):
+    """
+    Start realtime generation for a single product. Returns audio URL and FPS for the product.
+    """
+    try:
+        result = await stream_processor.start_product(db, session_id, product_id)
+        if result.get("status") == "error":
+            raise HTTPException(status_code=400, detail=result.get("detail"))
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/realtime/status/{session_id}")
+def realtime_status(session_id: str):
+    """
+    Get realtime generation status for a session, indicating whether a product is currently
+    being generated and which product it is.
+    """
+    try:
+        status = stream_processor.realtime_status(session_id)
+        return status
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+

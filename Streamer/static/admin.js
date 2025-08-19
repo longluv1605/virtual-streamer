@@ -428,7 +428,7 @@ async function showCreateSessionModal() {
     document.getElementById("createSessionForm").reset();
 
     // Reset streaming settings to default values
-    document.getElementById("enableStreaming").checked = false;
+    // document.getElementById("enableStreaming").checked = false;
     document.getElementById("waitTime").value = 10;
     document.getElementById("fps").value = 25;
     document.getElementById("batchSize").value = 4;
@@ -549,7 +549,7 @@ async function createSession() {
     }
 
     // Get streaming settings with validation
-    const enableStreaming = document.getElementById("enableStreaming").checked;
+    const enableStreaming = true;
     const waitTime = Math.max(
         1,
         Math.min(60, parseInt(document.getElementById("waitTime").value) || 10)

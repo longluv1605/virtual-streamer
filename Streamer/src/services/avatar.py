@@ -42,6 +42,7 @@ def video2imgs(vid_path, save_path, ext=".png", cut_frame=10000000):
 
 
 class Avatar:
+    base_path = "../Streamer"
     musetalk_path = "../MuseTalk"
 
     def __init__(
@@ -96,20 +97,7 @@ class Avatar:
                 sys.path.insert(0, musetalk_abs_path)
 
             if self.preparation:
-                if os.path.exists(self.avatar_path):
-                    try:
-                        response = input(
-                            f"{self.avatar_id} exists, Do you want to re-create it ? (y/n)"
-                        )
-                    except Exception:
-                        # Non-interactive environment – default to reuse
-                        response = "n"
-                    if response.lower() == "y":
-                        self._create_avatar(fp, vae)
-                    else:
-                        self._load_avatar()
-                else:
-                    self._create_avatar(fp, vae)
+                self._create_avatar(fp, vae)
             else:
                 if not os.path.exists(self.avatar_path):
                     logger.warning(
@@ -126,22 +114,9 @@ class Avatar:
                         )
                         self.preparation = True
                         self._create_avatar(fp, vae)
-                    elif avatar_info.get("bbox_shift") != self.avatar_info.get(
-                        "bbox_shift"
-                    ):
-                        try:
-                            response = input(
-                                " 【bbox_shift】 is changed, you need to re-create it ! (c/continue)"
-                            )
-                        except Exception:
-                            response = "c"  # default to recreate in non-interactive
-                        if response.lower() == "c":
-                            self._create_avatar(fp, vae)
-                        else:
-                            logger.info(
-                                "Aborting due to bbox shift change and user choice."
-                            )
-                            sys.exit()
+                    elif avatar_info.get("bbox_shift") != self.avatar_info.get("bbox_shift"):
+                        logger.warning("bbox_shift is changed, forcing re-creation.")
+                        self._create_avatar(fp, vae)
                     else:
                         self._load_avatar()
 
@@ -354,10 +329,8 @@ class Avatar:
         audio_processor,
         weight_dtype,
         device,
-        frame_offset=0,
     ):
         try:
-            self.frame_offset = frame_offset  # Store frame offset for use in queue
             logger.info("Start inference ...")
             ############################################## extract audio feature ##############################################
             start_time = time.time()
@@ -386,7 +359,7 @@ class Avatar:
             )
 
             logger.info(
-                "Total process time of {} frames without saving images = {}s".format(
+                "Total process time of {} frames = {}s".format(
                     video_num, time.time() - start_time
                 )
             )
@@ -494,7 +467,6 @@ class Avatar:
                 if self.idx >= video_len - 1:
                     break
                 try:
-                    start = time.time()
                     res_frame = res_frame_queue.get(block=True, timeout=1)
                 except queue.Empty:
                     continue
@@ -520,7 +492,7 @@ class Avatar:
 
                 try:
                     video_queue.put(
-                        (self.idx + self.frame_offset, combine_frame), timeout=0.1
+                        (self.idx, combine_frame), timeout=0.1
                     )
                 except:
                     # Queue full, drop frame
