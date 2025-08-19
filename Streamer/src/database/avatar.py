@@ -55,7 +55,7 @@ class AvatarDatabaseService:
 
     @staticmethod
     def update_avatar_preparation_status(
-        db: Session, avatar_id: int, is_prepared: bool = None
+        db: Session, avatar_id: int, video_path: str = None, is_prepared: bool = None
     ):
         """Update avatar preparation status"""
         try:
@@ -65,6 +65,9 @@ class AvatarDatabaseService:
 
             if is_prepared is not None:
                 avatar.is_prepared = is_prepared
+            
+            if video_path is not None:
+                avatar.video_path = video_path
 
             db.commit()
             logger.info(f"Updated avatar {avatar_id} preparation to: {is_prepared}")

@@ -71,11 +71,11 @@ Bạn là một người bán hàng livestream chuyên nghiệp, nhiệt tình v
 Hãy tạo một đoạn script để giới thiệu sản phẩm một cách hấp dẫn, thuyết phục và tự nhiên.
 
 Thông tin sản phẩm:
-- Tên: {product.name}
-- Mô tả: {product.description or "Không có mô tả"}
-- Giá: {product.price:,.0f} VNĐ
-- Danh mục: {product.category or "Không xác định"}
-- Số lượng trong kho: {product.stock_quantity}
+- Tên (name): {product.name}
+- Mô tả (description): {product.description or "Không có mô tả"}
+- Giá (price): {product.price:,.0f} VNĐ
+- Danh mục (category): {product.category or "Không xác định"}
+- Số lượng trong kho (stock quantity): {product.stock_quantity}
 
 Template cơ bản:
 {template.template}
