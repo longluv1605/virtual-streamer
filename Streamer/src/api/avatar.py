@@ -198,68 +198,68 @@ async def update_avatar(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/database/{avatar_id}/prepare")
-async def prepare_avatar(
-    avatar_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)
-):
-    """Prepare avatar for MuseTalk"""
-    try:
-        avatar = AvatarDatabaseService.get_avatar_by_id(db, avatar_id)
-        if not avatar:
-            raise HTTPException(status_code=404, detail="Avatar not found")
+# @router.post("/database/{avatar_id}/prepare")
+# async def prepare_avatar(
+#     avatar_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)
+# ):
+#     """Prepare avatar for MuseTalk"""
+#     try:
+#         avatar = AvatarDatabaseService.get_avatar_by_id(db, avatar_id)
+#         if not avatar:
+#             raise HTTPException(status_code=404, detail="Avatar not found")
 
-        if avatar.is_prepared:
-            return {"message": "Avatar already prepared", "avatar_id": avatar_id}
+#         if avatar.is_prepared:
+#             return {"message": "Avatar already prepared", "avatar_id": avatar_id}
 
-        # Start background preparation
-        AvatarDatabaseService.update_avatar_preparation_status(db, avatar_id, "processing")
+#         # Start background preparation
+#         AvatarDatabaseService.update_avatar_preparation_status(db, avatar_id, "processing")
 
-        # TODO: Add actual preparation logic here
-        # For now, just mark as prepared
-        background_tasks.add_task(_prepare_avatar_background, avatar_id)
+#         # TODO: Add actual preparation logic here
+#         # For now, just mark as prepared
+#         background_tasks.add_task(_prepare_avatar_background, avatar_id)
 
-        return {"message": "Avatar preparation started", "avatar_id": avatar_id}
+#         return {"message": "Avatar preparation started", "avatar_id": avatar_id}
 
-    except Exception as e:
-        logger.error(f"Error preparing avatar: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+#     except Exception as e:
+#         logger.error(f"Error preparing avatar: {e}")
+#         raise HTTPException(status_code=500, detail=str(e))
 
 
-async def _prepare_avatar_background(avatar_id: int):
-    """Background task to prepare avatar"""
-    try:
-        # Get database session
-        from src.models import SessionLocal
+# async def _prepare_avatar_background(avatar_id: int):
+#     """Background task to prepare avatar"""
+#     try:
+#         # Get database session
+#         from src.models import SessionLocal
 
-        db = SessionLocal()
+#         db = SessionLocal()
 
-        try:
-            # Update status to processing
-            AvatarDatabaseService.update_avatar_preparation_status(db, avatar_id, "processing")
+#         try:
+#             # Update status to processing
+#             AvatarDatabaseService.update_avatar_preparation_status(db, avatar_id, "processing")
 
-            # TODO: Add actual MuseTalk preparation logic here
-            # For now, just simulate preparation
-            await asyncio.sleep(5)  # Simulate processing time
+#             # TODO: Add actual MuseTalk preparation logic here
+#             # For now, just simulate preparation
+#             await asyncio.sleep(5)  # Simulate processing time
 
-            # Mark as prepared
-            AvatarDatabaseService.update_avatar_preparation_status(
-                db, avatar_id, "completed", is_prepared=True
-            )
+#             # Mark as prepared
+#             AvatarDatabaseService.update_avatar_preparation_status(
+#                 db, avatar_id, "completed", is_prepared=True
+#             )
 
-            logger.info(f"Avatar {avatar_id} preparation completed")
+#             logger.info(f"Avatar {avatar_id} preparation completed")
 
-        finally:
-            db.close()
+#         finally:
+#             db.close()
 
-    except Exception as e:
-        logger.info(f"Error in background avatar preparation: {e}")
-        # Mark as error if failed
-        try:
-            from src.models import SessionLocal
+#     except Exception as e:
+#         logger.info(f"Error in background avatar preparation: {e}")
+#         # Mark as error if failed
+#         try:
+#             from src.models import SessionLocal
 
-            db = SessionLocal()
-            AvatarDatabaseService.update_avatar_preparation_status(db, avatar_id, "error")
-            db.close()
-        except:
-            pass
+#             db = SessionLocal()
+#             AvatarDatabaseService.update_avatar_preparation_status(db, avatar_id, "error")
+#             db.close()
+#         except:
+#             pass
 

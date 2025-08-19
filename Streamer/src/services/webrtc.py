@@ -35,6 +35,7 @@ class VideoTrack(MediaStreamTrack):
         self._queue = queue
         self._fps = fps
         self._loop = asyncio.get_running_loop()
+        self._last_pts = 0  # Track the last pts to ensure monotonic increase
 
     async def recv(self) -> VideoFrame:
         """Nhận frame từ Queue và trả về VideoFrame."""
@@ -42,7 +43,15 @@ class VideoTrack(MediaStreamTrack):
             item: VideoItem = await self._loop.run_in_executor(None, self._queue.get)
             idx, frame = item
             vf = VideoFrame.from_ndarray(frame, format="bgr24")
-            vf.pts = idx
+
+            # Ensure pts is monotonic and doesn't go backwards
+            if idx <= self._last_pts:
+                self._last_pts += 1
+                vf.pts = self._last_pts
+            else:
+                vf.pts = idx
+                self._last_pts = idx
+
             vf.time_base = fractions.Fraction(1, self._fps)
             return vf
         except Exception as e:

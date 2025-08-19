@@ -72,16 +72,16 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 outputs_dir = os.path.join(current_dir, "outputs")
 static_dir = os.path.join(current_dir, "static")
 
-print(f"Current working directory: {os.getcwd()}")
-print(f"Script directory: {current_dir}")
-print(f"Outputs directory: {outputs_dir}")
+logger.info(f"Current working directory: {os.getcwd()}")
+logger.info(f"Script directory: {current_dir}")
+logger.info(f"Outputs directory: {outputs_dir}")
 
 Path(outputs_dir, "audio").mkdir(parents=True, exist_ok=True)
 Path(outputs_dir, "videos").mkdir(parents=True, exist_ok=True)
 Path(static_dir).mkdir(parents=True, exist_ok=True)
 
-print(f"Created directories - outputs exists: {os.path.exists(outputs_dir)}")
-print(f"Audio dir exists: {os.path.exists(os.path.join(outputs_dir, 'audio'))}")
+logger.info(f"Created directories - outputs exists: {os.path.exists(outputs_dir)}")
+logger.info(f"Audio dir exists: {os.path.exists(os.path.join(outputs_dir, 'audio'))}")
 
 # Mount static files
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
