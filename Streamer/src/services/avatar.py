@@ -11,6 +11,7 @@ import time
 import queue
 import threading
 import numpy as np
+import subprocess
 
 import shutil
 import logging
@@ -55,7 +56,10 @@ class Avatar:
         extra_margin=10,
         parsing_mode="jaw",
         audio_padding_length_left=2,
-        audio_padding_length_right=2,
+        audio_padding_length_right=2, 
+        target_width=480, 
+        fps=25, 
+        bitrate_kbps=500
     ):
         self.version = version
         self.extra_margin = extra_margin
@@ -64,8 +68,9 @@ class Avatar:
         self.audio_padding_length_right = audio_padding_length_right
 
         self.avatar_id = avatar_id
-        self.video_path = video_path
         self.bbox_shift = bbox_shift
+        
+        self.video_path = video_path
 
         cwd = os.getcwd()
         self.avatar_path = os.path.join(cwd, f"./results/avatars/avatar_{avatar_id}")
@@ -76,14 +81,51 @@ class Avatar:
         self.mask_out_path = f"{self.avatar_path}/mask"
         self.mask_coords_path = f"{self.avatar_path}/mask_coords.pkl"
         self.avatar_info_path = f"{self.avatar_path}/avator_info.json"
+        
+        # Preprocessing video
+        self._preprocess_avatar_video(target_width, fps, bitrate_kbps)
+        
         self.avatar_info = {
             "avatar_id": avatar_id,
-            "video_path": video_path,
+            "video_path": self.video_path,
             "bbox_shift": bbox_shift,
             "version": self.version,
         }
         self.preparation = preparation
         self.idx = 0
+        
+
+    def _preprocess_avatar_video(self, target_width=480, fps=25, bitrate_kbps=500):
+        """
+        Giảm độ phân giải, fps và bitrate cho video avatar.
+
+        :param input_path: Đường dẫn video gốc.
+        :param output_path: Nơi lưu video đã nén.
+        :param target_width: Chiều rộng mong muốn (tự giữ tỷ lệ).
+        :param fps: Số khung hình mỗi giây mong muốn.
+        :param bitrate_kbps: Bitrate mục tiêu (kb/s).
+        """
+        
+        try:
+            logger.info("Preprocessing avatar video...")
+            output_path = f"{self.video_path}.compressed.mp4"
+            
+            # Đảm bảo thư mục đích tồn tại
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            cmd = [
+                "ffmpeg", "-y", "-i", self.video_path,
+                "-vf", f"scale={target_width}:-2,fps={fps}",
+                "-b:v", f"{bitrate_kbps}k",
+                "-c:v", "libx264", "-preset", "fast",
+                "-movflags", "+faststart",  # tối ưu streaming qua mạng
+                "-an",  # Bỏ track audio nếu không cần (avatar thường không cần âm thanh)
+                output_path
+            ]
+            subprocess.run(cmd, check=True)
+            self.video_path = output_path
+            self._update_avatar_status(video_path=self.video_path)
+        except Exception as e:
+            logger.error("Error")
 
     def prepare_avatar(self, fp, vae):
         try:
@@ -103,7 +145,6 @@ class Avatar:
                     logger.warning(
                         f"Avatar path for {self.avatar_id} does not exist; forcing re-creation (preparation set False)."
                     )
-                    self.preparation = True
                     self._create_avatar(fp, vae)
                 else:
                     avatar_info = self._read_avatar_info()
@@ -119,7 +160,8 @@ class Avatar:
                         self._create_avatar(fp, vae)
                     else:
                         self._load_avatar()
-
+                        
+            self.preparation = False
             # Restore working directory
             os.chdir(original_cwd)
             return True
@@ -132,7 +174,7 @@ class Avatar:
             except:
                 pass
             return False
-
+    
     def _create_avatar(self, fp, vae):
         # Remove any existing (possibly corrupted) directory
         if os.path.isdir(self.avatar_path):
@@ -140,7 +182,7 @@ class Avatar:
                 shutil.rmtree(self.avatar_path)
             except Exception as e:
                 logger.warning(f"Could not remove existing avatar directory: {e}")
-        logger.info(f"***** Creating avator: [{self.avatar_id}]  ******")
+        logger.info(f"***** Creating avator: [{self.avatar_id}] with video = {self.video_path}  ******")
         osmakedirs(
             [
                 self.avatar_path,
@@ -150,7 +192,7 @@ class Avatar:
             ]
         )
         self._prepare_material(fp, vae)
-        self._update_avatar_status()
+        self._update_avatar_status(is_prepared=True)
 
     def _read_avatar_info(self):
         try:
@@ -199,7 +241,7 @@ class Avatar:
             logger.error(f"Failed loading avatar...: {e}")
             raise
 
-    def _update_avatar_status(self):
+    def _update_avatar_status(self, video_path=None, is_prepared=None):
         from src.database import get_db
 
         # Get a new DB session in the subprocess context
@@ -208,10 +250,16 @@ class Avatar:
         try:
             from ..database import AvatarDatabaseService
 
-            AvatarDatabaseService.update_avatar_preparation_status(
-                db_session, self.avatar_id, True
-            )
-            logger.info(f"Avatar {self.avatar_id} marked as prepared...")
+            if video_path is not None:
+                AvatarDatabaseService.update_avatar_preparation_status(
+                    db_session, self.avatar_id, video_path=video_path
+                )
+                logger.info(f"Avatar {self.avatar_id} video path is updated to {video_path}")
+            if is_prepared is not None:
+                AvatarDatabaseService.update_avatar_preparation_status(
+                    db_session, self.avatar_id, is_prepared=is_prepared
+                )
+                logger.info(f"Avatar {self.avatar_id} is marked as prepared")
         except Exception as e:
             logger.error(f"Warning: Could not update avatar status: {e}")
         finally:

@@ -144,7 +144,7 @@ class TTSService:
         import soundfile as sf
         
         try:
-            output_path = self.output_dir / f"{output_path}"
+            output_path = f"{self.output_dir}/{output_path}"
             
             logger.info("Processing audio...")
             # Read audio
@@ -155,7 +155,7 @@ class TTSService:
             
             # Save
             sf.write(output_path, y_speedup, sr)
+            return output_path
         except Exception as e:
             logger.error(f"Error processing audio: {e}")
-        
-        return output_path
+            raise e
