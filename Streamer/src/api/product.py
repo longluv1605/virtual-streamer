@@ -105,7 +105,7 @@ async def patch_product(
 ):
     """Partially update a product"""
     # Only include non-None fields in the update
-    update_data = {k: v for k, v in product_update.dict().items() if v is not None}
+    update_data = {k: v for k, v in product_update.model_dump().items() if v is not None}
     product = ProductDatabaseService.update_product(db, product_id, update_data)
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")

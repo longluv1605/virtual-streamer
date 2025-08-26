@@ -3,7 +3,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-from src.models import Base, Product, ScriptTemplate
+from src.models import Base, Product, ScriptTemplate, Avatar
 
 import logging
 
@@ -135,9 +135,32 @@ def init_sample_data(db: Session):
             template = ScriptTemplate(**template_data)
             db.add(template)
 
-            db.commit()
-            logger.info("Sample data initialized successfully!")
-
+        # Sample avatar
+        sample_avatars = [
+            {
+                "video_path": "/static/avatars/long.mp4",
+                "name": "Long",
+                "default": True,
+            },
+            {
+                "video_path": "/static/avatars/sun.mp4",
+                "name": "Sun",
+                "default": True,
+            },
+            {
+                "video_path": "/static/avatars/yongen.mp4",
+                "name": "Yongen",
+                "default": True,
+            },
+        ]
+        
+        for avatar_data in sample_avatars:
+            avatar = Avatar(**avatar_data)
+            db.add(avatar)
+            
+        db.commit()
+        logger.info("Sample data init successfully...")
+        
     except Exception as e:
         logger.error(f"Error initializing sample data: {e}")
         db.rollback()

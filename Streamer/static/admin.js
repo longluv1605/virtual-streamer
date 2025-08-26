@@ -9,7 +9,6 @@ let products = [];
 let sessions = [];
 let templates = [];
 let availableAvatars = [];
-let databaseAvatars = []; // Avatars in database
 
 // Initialize app
 document.addEventListener("DOMContentLoaded", function () {
@@ -23,11 +22,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
     initWebSocket();
     loadDashboard();
-    // loadProducts();
     loadSessions();
     loadTemplates();
     loadAvatars();
-    loadDatabaseAvatars(); // Load avatars from database
 });
 
 // WebSocket functions
@@ -304,41 +301,6 @@ function showAddProductModal() {
     new bootstrap.Modal(document.getElementById("addProductModal")).show();
 }
 
-async function addProduct() {
-    const formData = {
-        name: document.getElementById("productName").value,
-        description: document.getElementById("productDescription").value,
-        price: parseFloat(document.getElementById("productPrice").value),
-        category: document.getElementById("productCategory").value,
-        stock_quantity: parseInt(document.getElementById("productStock").value),
-        image_url: document.getElementById("productImage").value,
-    };
-
-    try {
-        const response = await fetch(`${API_BASE}/products`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(formData),
-        });
-
-        if (response.ok) {
-            showNotification("success", "Thêm sản phẩm thành công");
-            bootstrap.Modal.getInstance(
-                document.getElementById("addProductModal")
-            ).hide();
-            // loadProducts();
-            loadDashboard();
-        } else {
-            throw new Error("Failed to add product");
-        }
-    } catch (error) {
-        console.error("Error adding product:", error);
-        showNotification("error", "Lỗi thêm sản phẩm");
-    }
-}
-
 // Session functions
 async function loadSessions() {
     try {
@@ -456,7 +418,7 @@ async function showCreateSessionModal() {
         console.log("Starting to load product selection...");
         await loadProductSelection();
         console.log("Product selection loaded successfully");
-        await loadDatabaseAvatarSelection(); // Use database avatars
+        await loadAvatarSelection();
     } catch (error) {
         console.error("Error in showCreateSessionModal:", error);
     }
@@ -464,7 +426,6 @@ async function showCreateSessionModal() {
 
 async function loadProductSelection() {
     const container = document.getElementById("productSelection");
-    console.log("loadProductSelection called, container:", container);
 
     try {
         console.log("Fetching products from API...");
@@ -533,7 +494,6 @@ async function createSession() {
     // Get avatar path from selection
     let avatarPath = null;
     const avatarSelect = document.getElementById("avatarSelect");
-    const avatarPathInput = document.getElementById("avatarVideo").value.trim();
 
     if (avatarSelect.value) {
         // Avatar selected from dropdown - use the path directly
@@ -823,262 +783,6 @@ function hideLoading() {
     }
 }
 
-// Avatar functions
-async function loadAvatars() {
-    try {
-        const response = await fetch(`${API_BASE}/avatars`);
-        const data = await response.json();
-        availableAvatars = data.avatars;
-    } catch (error) {
-        console.error("Error loading avatars:", error);
-        availableAvatars = [];
-    }
-}
-
-// Avatar management functions
-async function loadDatabaseAvatars() {
-    try {
-        const response = await fetch(`${API_BASE}/avatars/database`);
-        databaseAvatars = await response.json();
-        console.log("Database avatars loaded:", databaseAvatars);
-    } catch (error) {
-        console.error("Error loading database avatars:", error);
-        databaseAvatars = [];
-    }
-}
-
-async function loadDatabaseAvatarSelection() {
-    const select = document.getElementById("avatarSelect");
-
-    // Clear existing options except the first one
-    select.innerHTML = '<option value="">-- Chọn avatar --</option>';
-
-    try {
-        // Load fresh data
-        await loadDatabaseAvatars();
-
-        if (databaseAvatars.length === 0) {
-            const option = document.createElement("option");
-            option.value = "";
-            option.textContent =
-                "Chưa có avatar trong database. Hãy thêm avatar mới.";
-            option.disabled = true;
-            select.appendChild(option);
-            return;
-        }
-
-        databaseAvatars.forEach((avatar) => {
-            const option = document.createElement("option");
-            option.value = avatar.id; // Use avatar ID instead of path
-            option.textContent = `${avatar.name} ${
-                avatar.is_prepared ? "Prepared" : "Pending"
-            } (ID: ${avatar.id})`;
-            if (!avatar.is_prepared) {
-                option.style.color = "#6c757d"; // Gray for unprepared
-            }
-            select.appendChild(option);
-        });
-    } catch (error) {
-        console.error("Error loading avatar selection:", error);
-        select.innerHTML = '<option value="">Lỗi tải danh sách avatar</option>';
-    }
-}
-
-async function createOrSelectAvatar() {
-    const avatarPath = document.getElementById("avatarVideo").value.trim();
-    if (!avatarPath) {
-        showNotification("warning", "Vui lòng nhập đường dẫn avatar");
-        return null;
-    }
-
-    try {
-        // Check if avatar already exists in database
-        const existingAvatar = databaseAvatars.find(
-            (a) => a.video_path === avatarPath
-        );
-        if (existingAvatar) {
-            console.log("Using existing avatar:", existingAvatar);
-            return existingAvatar.id;
-        }
-
-        // Create new avatar in database
-        const response = await fetch(`${API_BASE}/avatars/database`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                video_path: avatarPath,
-                name: `Avatar ${Date.now()}`, // Generate name
-                bbox_shift: 0,
-            }),
-        });
-
-        if (response.ok) {
-            const newAvatar = await response.json();
-            console.log("Created new avatar:", newAvatar);
-            // Refresh avatar list
-            await loadDatabaseAvatars();
-            return newAvatar.id;
-        } else {
-            throw new Error("Failed to create avatar");
-        }
-    } catch (error) {
-        console.error("Error creating/selecting avatar:", error);
-        showNotification("error", "Lỗi tạo/chọn avatar");
-        return null;
-    }
-}
-
-function loadAvatarSelection() {
-    const select = document.getElementById("avatarSelect");
-
-    // Clear existing options except the first one
-    select.innerHTML = '<option value="">-- Chọn avatar có sẵn --</option>';
-
-    if (availableAvatars.length === 0) {
-        const option = document.createElement("option");
-        option.value = "";
-        option.textContent = "Không có avatar nào";
-        option.disabled = true;
-        select.appendChild(option);
-        return;
-    }
-
-    availableAvatars.forEach((avatar) => {
-        const option = document.createElement("option");
-        option.value = avatar.path;
-        option.textContent = `${avatar.name} (${formatFileSize(avatar.size)})`;
-        select.appendChild(option);
-    });
-}
-
-function selectAvatar() {
-    const select = document.getElementById("avatarSelect");
-    const input = document.getElementById("avatarVideo");
-    const selectedAvatarId = select.value;
-
-    if (selectedAvatarId) {
-        // Find the selected avatar in database
-        const selectedAvatar = databaseAvatars.find(
-            (a) => a.id == selectedAvatarId
-        );
-        if (selectedAvatar) {
-            input.value = selectedAvatar.video_path; // Show path for preview
-            showVideoPreview(selectedAvatar.video_path);
-        }
-    } else {
-        input.value = "";
-        hideVideoPreview();
-    }
-}
-
-function browseAvatar() {
-    // Reload available avatars first
-    loadAvatars().then(() => {
-        loadAvatarSelection();
-        showNotification("info", "Danh sách avatar đã được cập nhật");
-    });
-}
-
-async function uploadAvatar() {
-    const fileInput = document.getElementById("avatarUpload");
-    const file = fileInput.files[0];
-
-    if (!file) {
-        return;
-    }
-
-    // Validate file type
-    const validTypes = [
-        "video/mp4",
-        "video/avi",
-        "video/mov",
-        "video/x-msvideo",
-        "video/quicktime",
-    ];
-    if (!validTypes.includes(file.type)) {
-        showNotification("error", "Chỉ chấp nhận file video (MP4, AVI, MOV)");
-        return;
-    }
-
-    // Validate file size (max 100MB)
-    const maxSize = 100 * 1024 * 1024; // 100MB
-    if (file.size > maxSize) {
-        showNotification(
-            "error",
-            "File quá lớn. Vui lòng chọn file nhỏ hơn 100MB"
-        );
-        return;
-    }
-
-    const formData = new FormData();
-    formData.append("file", file);
-
-    showLoading("Đang upload avatar...");
-
-    try {
-        const response = await fetch(`${API_BASE}/avatars/upload`, {
-            method: "POST",
-            body: formData,
-        });
-
-        if (response.ok) {
-            const result = await response.json();
-            showNotification("success", "Upload avatar thành công!");
-
-            // Update the input field and preview
-            document.getElementById("avatarVideo").value = result.path;
-            showVideoPreview(result.path);
-
-            // Reload avatars list
-            await loadAvatars();
-            loadAvatarSelection();
-
-            // Clear file input
-            fileInput.value = "";
-        } else {
-            const error = await response.json();
-            throw new Error(error.detail || "Upload failed");
-        }
-    } catch (error) {
-        console.error("Error uploading avatar:", error);
-        showNotification("error", `Lỗi upload: ${error.message}`);
-    } finally {
-        hideLoading();
-    }
-}
-
-function showVideoPreview(videoPath) {
-    const preview = document.getElementById("avatarPreview");
-    const video = document.getElementById("previewVideo");
-    const info = document.getElementById("videoInfo");
-
-    video.src = videoPath;
-
-    // Find avatar info
-    const avatar = availableAvatars.find((a) => a.path === videoPath);
-    if (avatar) {
-        info.textContent = `${avatar.name} (${formatFileSize(avatar.size)})`;
-    } else {
-        info.textContent = "Video preview";
-    }
-
-    preview.style.display = "block";
-}
-
-function hideVideoPreview() {
-    document.getElementById("avatarPreview").style.display = "none";
-}
-
-function formatFileSize(bytes) {
-    if (bytes === 0) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-}
-
 function isValidVideoPath(path) {
     if (!path || typeof path !== "string") {
         return false;
@@ -1107,35 +811,34 @@ function isValidVideoPath(path) {
     );
 }
 
-// Add event listener for manual input changes
-document.addEventListener("DOMContentLoaded", function () {
-    // Add event listener after DOM is loaded
-    setTimeout(() => {
-        const avatarInput = document.getElementById("avatarVideo");
-        if (avatarInput) {
-            avatarInput.addEventListener("input", function () {
-                const path = this.value.trim();
-                if (
-                    path &&
-                    (path.startsWith("/static/") ||
-                        path.startsWith("http") ||
-                        path.includes("MuseTalk"))
-                ) {
-                    showVideoPreview(path);
-                } else {
-                    hideVideoPreview();
-                }
-            });
-        }
-    }, 1000);
-});
+// // Add event listener for manual input changes
+// document.addEventListener("DOMContentLoaded", function () {
+//     // Add event listener after DOM is loaded
+//     setTimeout(() => {
+//         const avatarInput = document.getElementById("avatarVideo");
+//         if (avatarInput) {
+//             avatarInput.addEventListener("input", function () {
+//                 const path = this.value.trim();
+//                 if (
+//                     path &&
+//                     (path.startsWith("/static/") ||
+//                         path.startsWith("http") ||
+//                         path.includes("MuseTalk"))
+//                 ) {
+//                     showVideoPreview(path);
+//                 } else {
+//                     hideVideoPreview();
+//                 }
+//             });
+//         }
+//     }, 1000);
+// });
 
 // Avatar functions (MuseTalk Integration)
 async function loadAvatars() {
     try {
         const response = await fetch(`${API_BASE}/avatars`);
-        const data = await response.json();
-        availableAvatars = data.avatars;
+        availableAvatars = await response.json();
         console.log("Loaded avatars:", availableAvatars);
     } catch (error) {
         console.error("Error loading avatars:", error);
@@ -1146,10 +849,11 @@ async function loadAvatars() {
 function loadAvatarSelection() {
     const select = document.getElementById("avatarSelect");
 
-    // Clear existing options except the first one
+    // Reset: giữ đúng 1 placeholder
     select.innerHTML = '<option value="">-- Chọn avatar có sẵn --</option>';
 
-    if (availableAvatars.length === 0) {
+    // Không có avatar nào
+    if (!Array.isArray(availableAvatars) || availableAvatars.length === 0) {
         const option = document.createElement("option");
         option.value = "";
         option.textContent = "Không có avatar nào";
@@ -1158,79 +862,41 @@ function loadAvatarSelection() {
         return;
     }
 
-    // Group avatars by source
-    const groupedAvatars = {
-        local: [],
-        musetalk_video: [],
-        musetalk_demo: [],
-    };
+    // Tạo option cho tất cả avatar (không group)
+    const frag = document.createDocumentFragment();
 
     availableAvatars.forEach((avatar) => {
-        if (groupedAvatars[avatar.source]) {
-            groupedAvatars[avatar.source].push(avatar);
-        }
+        // Bỏ icon thư mục/hình/video ở đầu tên (nếu có)
+        const cleanName = (avatar.name || "").replace(/^[📁🎬🖼️]\s*/, "");
+        const label = `${cleanName}`;
+
+        const option = document.createElement("option");
+        option.value = avatar.video_path;
+        option.textContent = label;
+
+        frag.appendChild(option);
     });
 
-    // Add grouped options
-    Object.entries(groupedAvatars).forEach(([source, avatars]) => {
-        if (avatars.length > 0) {
-            // Add group header
-            const optgroup = document.createElement("optgroup");
-            optgroup.label = getSourceLabel(source);
-
-            avatars.forEach((avatar) => {
-                const option = document.createElement("option");
-                option.value = avatar.path;
-                option.textContent = `${avatar.name.replace(
-                    /^[📁🎬🖼️]\s*/,
-                    ""
-                )} (${formatFileSize(avatar.size)})`;
-
-                // Add additional info for MuseTalk avatars
-                if (avatar.source.startsWith("musetalk")) {
-                    option.title = `${
-                        avatar.type === "video"
-                            ? "Video Avatar"
-                            : "Image Avatar"
-                    } từ MuseTalk`;
-                }
-
-                optgroup.appendChild(option);
-            });
-
-            select.appendChild(optgroup);
-        }
-    });
-}
-
-function getSourceLabel(source) {
-    const labels = {
-        local: "📁 Local Avatars",
-        musetalk_video: "🎬 MuseTalk Videos (Khuyến nghị)",
-        musetalk_demo: "🖼️ MuseTalk Demo Images",
-    };
-    return labels[source] || source;
+    select.appendChild(frag);
 }
 
 function selectAvatar() {
     const select = document.getElementById("avatarSelect");
-    const input = document.getElementById("avatarVideo");
+    // const input = document.getElementById("avatarVideo");
     const selectedPath = select.value;
 
     if (selectedPath) {
-        input.value = selectedPath;
+        // input.value = selectedPath;
         showVideoPreview(selectedPath);
 
         // Show helpful message for MuseTalk avatars
         const selectedAvatar = availableAvatars.find(
-            (a) => a.path === selectedPath
+            (a) => a.video_path === selectedPath
         );
-        if (selectedAvatar && selectedAvatar.source.startsWith("musetalk")) {
+        if (selectedAvatar) {
             showNotification(
                 "info",
-                `Đã chọn ${
-                    selectedAvatar.type === "video" ? "video" : "ảnh"
-                } avatar từ MuseTalk: ${selectedAvatar.name}`
+                `Đã chọn avatar từ MuseTalk: ${selectedAvatar.name}`
             );
         }
     } else {
@@ -1296,7 +962,7 @@ async function uploadAvatar() {
             showNotification("success", "Upload avatar thành công!");
 
             // Update the input field and preview
-            document.getElementById("avatarVideo").value = result.path;
+            // document.getElementById("avatarVideo").value = result.path;
             showVideoPreview(result.path);
 
             // Reload avatars list
@@ -1327,45 +993,22 @@ function showVideoPreview(videoPath) {
         return;
     }
 
-    // For MuseTalk paths, we might need to handle them differently
-    if (videoPath.includes("MuseTalk")) {
-        // For MuseTalk files, show path info instead of actual preview
-        info.textContent = "MuseTalk Avatar - Preview không khả dụng";
-        preview.style.display = "block";
-        video.style.display = "none";
-
-        // Create a placeholder div
-        if (!document.getElementById("musetalkPreview")) {
-            const placeholder = document.createElement("div");
-            placeholder.id = "musetalkPreview";
-            placeholder.className =
-                "bg-light rounded d-flex align-items-center justify-content-center";
-            placeholder.style.cssText = "height: 150px; max-width: 100%;";
-            placeholder.innerHTML =
-                '<i class="fas fa-user-circle fa-3x text-muted"></i><br><small>MuseTalk Avatar</small>';
-
-            video.parentNode.insertBefore(placeholder, video);
-        }
-        document.getElementById("musetalkPreview").style.display = "flex";
-    } else {
-        // Regular video preview
-        video.src = videoPath;
-        video.style.display = "block";
-        if (document.getElementById("musetalkPreview")) {
-            document.getElementById("musetalkPreview").style.display = "none";
-        }
-
-        // Find avatar info
-        const avatar = availableAvatars.find((a) => a.path === videoPath);
-        if (avatar) {
-            info.textContent = `${avatar.name} (${formatFileSize(
-                avatar.size
-            )})`;
-        } else {
-            info.textContent = "Video preview";
-        }
+    // Regular video preview
+    video.src = videoPath;
+    video.style.display = "block";
+    if (document.getElementById("musetalkPreview")) {
+        document.getElementById("musetalkPreview").style.display = "none";
     }
 
+    // Find avatar info
+    const avatar = availableAvatars.find((a) => a.path === videoPath);
+    if (avatar) {
+        info.textContent = `${avatar.name} (${formatFileSize(
+            avatar.size
+        )})`;
+    } else {
+        info.textContent = "Video preview";
+    }
     preview.style.display = "block";
 }
 

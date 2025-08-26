@@ -12,9 +12,21 @@ class AvatarDatabaseService:
     """Service for managing avatars and their preparation status"""
 
     @staticmethod
-    def get_or_create_avatar(db: Session, video_path: str, name: str = None) -> Avatar:
+    def get_or_create_avatar(
+        db: Session, video_path: str, name: str = None, 
+        compress: bool = False,
+        compress_fps: int = None,
+        compress_resolution: int = None,
+        compress_bitrate: int = None
+    ) -> Avatar:
         """Get existing avatar or create new one"""
         try:
+            if not compress:
+                if compress_fps or compress_resolution or compress_bitrate:
+                    raise ValueError("Compress is none but its atribute are not!")
+            elif not compress_fps or not compress_resolution or not compress_bitrate:
+                raise ValueError("Compress is True but some compress attribute are missing!")
+            
             # Try to find existing avatar
             avatar = db.query(Avatar).filter(Avatar.video_path == video_path).first()
 
@@ -29,16 +41,14 @@ class AvatarDatabaseService:
                 if name.lower().endswith((".mp4", ".avi", ".mov", ".mkv")):
                     name = name.rsplit(".", 1)[0]
 
-            # Get file info if possible
-            file_size = None
-            if os.path.exists(video_path):
-                file_size = os.path.getsize(video_path)
-
             avatar = Avatar(
                 video_path=video_path,
                 name=name,
                 is_prepared=False,
-                file_size=file_size,
+                compress=compress,
+                compress_fps=compress_fps,
+                compress_resolution=compress_resolution,
+                compress_bitrate=compress_bitrate
             )
 
             db.add(avatar)
@@ -83,6 +93,11 @@ class AvatarDatabaseService:
         return db.query(Avatar).filter(Avatar.id == avatar_id).first()
 
     @staticmethod
-    def list_avatars(db: Session, skip: int = 0, limit: int = 100) -> List[Avatar]:
+    def get_avatars(db: Session, skip: int = 0, limit: int = 100) -> List[Avatar]:
         """List all avatars"""
         return db.query(Avatar).offset(skip).limit(limit).all()
+
+    @staticmethod
+    def get_default_avatars(db: Session) -> List[Avatar]:
+        """List all system avatars"""
+        return db.query(Avatar).filter(Avatar.default == True)

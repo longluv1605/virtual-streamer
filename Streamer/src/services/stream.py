@@ -135,7 +135,7 @@ class StreamProcessor:
             audio_filename = f"product_{session_id}_{product.id}"
             audio_path = await self.tts_service.text_to_speech(script, audio_filename)
             speedup_audio_path = f"{audio_filename}_speedup.mp3"
-            audio_path = self.tts_service.processing_audio(audio_path, speedup_audio_path, speed_factor=1.5)
+            audio_path = self.tts_service.processing_audio(audio_path, speedup_audio_path, speed_factor=1.25)
             
             # Update database
             update_data = {

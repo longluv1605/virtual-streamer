@@ -29,7 +29,7 @@ router = APIRouter(prefix="/avatars", tags=["avatars"])
 
 
 # Avatar endpoints
-@router.get("")
+# @router.get("")
 async def get_available_avatars():
     """Get list of available avatar videos from both local and MuseTalk directories"""
     avatar_files = []
@@ -128,43 +128,22 @@ async def upload_avatar(file: UploadFile = File(...)):
     }
 
 
-# ===== AVATAR MANAGEMENT ENDPOINTS =====
-
-
-@router.get("/database", response_model=List[AvatarResponse])
-async def list_database_avatars(
+# ===== AVATAR ENDPOINTS =====
+@router.get("", response_model=List[AvatarResponse])
+async def get_avatars(
     skip: int = 0, limit: int = 100, db: Session = Depends(get_db)
 ):
     """List all avatars in database"""
     try:
-        avatars = AvatarDatabaseService.list_avatars(db, skip=skip, limit=limit)
+        avatars = AvatarDatabaseService.get_avatars(db, skip=skip, limit=limit)
         return avatars
     except Exception as e:
         logger.error(f"Error listing avatars: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/database", response_model=AvatarResponse)
-async def create_avatar(avatar_data: AvatarCreate, db: Session = Depends(get_db)):
-    """Create or get existing avatar"""
-    try:
-        avatar = AvatarDatabaseService.get_or_create_avatar(
-            db, video_path=avatar_data.video_path, name=avatar_data.name
-        )
-        # Update bbox_shift if provided
-        if avatar_data.bbox_shift != 0:
-            avatar.bbox_shift = avatar_data.bbox_shift
-            db.commit()
-            db.refresh(avatar)
-
-        return avatar
-    except Exception as e:
-        logger.error(f"Error creating avatar: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/database/{avatar_id}", response_model=AvatarResponse)
-async def get_avatar(avatar_id: int, db: Session = Depends(get_db)):
+@router.get("/{avatar_id}", response_model=AvatarResponse)
+async def get_avatar_by_id(avatar_id: int, db: Session = Depends(get_db)):
     """Get avatar by ID"""
     avatar = AvatarDatabaseService.get_avatar_by_id(db, avatar_id)
     if not avatar:
@@ -172,11 +151,44 @@ async def get_avatar(avatar_id: int, db: Session = Depends(get_db)):
     return avatar
 
 
-@router.put("/database/{avatar_id}", response_model=AvatarResponse)
-async def update_avatar(
-    avatar_id: int, avatar_update: AvatarUpdate, db: Session = Depends(get_db)
-):
+@router.post("", response_model=AvatarResponse)
+async def create_avatar(avatar_data: AvatarCreate, db: Session = Depends(get_db)):
+    """Create or get existing avatar"""
+    try:
+        avatar = AvatarDatabaseService.get_or_create_avatar(
+            db, video_path=avatar_data.video_path, name=avatar_data.name
+        )
+
+        return avatar
+    except Exception as e:
+        logger.error(f"Error creating avatar: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/{avatar_id}", response_model=AvatarResponse)
+async def update_avatar(avatar_id: int, avatar_update: AvatarUpdate, db: Session = Depends(get_db)):
     """Update avatar"""
+    try:
+        avatar = AvatarDatabaseService.get_avatar_by_id(db, avatar_id)
+        if not avatar:
+            raise HTTPException(status_code=404, detail="Avatar not found")
+
+        # Update fields
+        if avatar_update.name:
+            avatar.name = avatar_update.name
+        if avatar_update.bbox_shift is not None:
+            avatar.bbox_shift = avatar_update.bbox_shift
+
+        db.commit()
+        db.refresh(avatar)
+        return avatar
+    except Exception as e:
+        logger.error(f"Error updating avatar: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# @router.delete("/{avatar_id}", response_model=AvatarResponse)
+# async def update_avatar(avatar_id: int, db: Session = Depends(get_db)):
+    """Delete avatar"""
     try:
         avatar = AvatarDatabaseService.get_avatar_by_id(db, avatar_id)
         if not avatar:
@@ -196,70 +208,3 @@ async def update_avatar(
     except Exception as e:
         logger.error(f"Error updating avatar: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
-
-# @router.post("/database/{avatar_id}/prepare")
-# async def prepare_avatar(
-#     avatar_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)
-# ):
-#     """Prepare avatar for MuseTalk"""
-#     try:
-#         avatar = AvatarDatabaseService.get_avatar_by_id(db, avatar_id)
-#         if not avatar:
-#             raise HTTPException(status_code=404, detail="Avatar not found")
-
-#         if avatar.is_prepared:
-#             return {"message": "Avatar already prepared", "avatar_id": avatar_id}
-
-#         # Start background preparation
-#         AvatarDatabaseService.update_avatar_preparation_status(db, avatar_id, "processing")
-
-#         # TODO: Add actual preparation logic here
-#         # For now, just mark as prepared
-#         background_tasks.add_task(_prepare_avatar_background, avatar_id)
-
-#         return {"message": "Avatar preparation started", "avatar_id": avatar_id}
-
-#     except Exception as e:
-#         logger.error(f"Error preparing avatar: {e}")
-#         raise HTTPException(status_code=500, detail=str(e))
-
-
-# async def _prepare_avatar_background(avatar_id: int):
-#     """Background task to prepare avatar"""
-#     try:
-#         # Get database session
-#         from src.models import SessionLocal
-
-#         db = SessionLocal()
-
-#         try:
-#             # Update status to processing
-#             AvatarDatabaseService.update_avatar_preparation_status(db, avatar_id, "processing")
-
-#             # TODO: Add actual MuseTalk preparation logic here
-#             # For now, just simulate preparation
-#             await asyncio.sleep(5)  # Simulate processing time
-
-#             # Mark as prepared
-#             AvatarDatabaseService.update_avatar_preparation_status(
-#                 db, avatar_id, "completed", is_prepared=True
-#             )
-
-#             logger.info(f"Avatar {avatar_id} preparation completed")
-
-#         finally:
-#             db.close()
-
-#     except Exception as e:
-#         logger.info(f"Error in background avatar preparation: {e}")
-#         # Mark as error if failed
-#         try:
-#             from src.models import SessionLocal
-
-#             db = SessionLocal()
-#             AvatarDatabaseService.update_avatar_preparation_status(db, avatar_id, "error")
-#             db.close()
-#         except:
-#             pass
-
