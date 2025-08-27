@@ -63,6 +63,7 @@ class Avatar:
         compress_fps=None, 
         compress_bitrate=None
     ):
+        video_path = self.base_path + video_path
         self.version = version
         self.extra_margin = extra_margin
         self.parsing_mode = parsing_mode

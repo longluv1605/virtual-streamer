@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="vi">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Virtual Streamer - Admin Dashboard</title>
+        <link
+            href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
+            rel="stylesheet"
+        />
+        <link
+            href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="/static/style.css">
+    </head>
+    <body>
+        <div class="container-fluid">
+            <div class="row">
+                <!-- Sidebar -->
+                <div class="col-md-3 col-lg-2 sidebar text-white p-0">
+                    <div class="p-3">
+                        <h4 class="home">
+                            <a href="/" class="text-white text-decoration-none page-dir">
+                                <i class="fas fa-video"></i> Virtual Streamer
+                            </a>
+                        </h4>
+                        <hr />
+                        <nav class="nav flex-column">
+                            <a href="/admin"    class="nav-link text-white page-dir">
+                                <i class="fas fa-tachometer-alt"></i> Dashboard
+                            </a>
+                            <a href="/products" class="nav-link text-white page-dir">
+                                <i class="fas fa-box"></i> Quản lý sản phẩm
+                            </a>
+                            <a href="/sessions" class="nav-link text-white page-dir">
+                                <i class="fas fa-broadcast-tower"></i> Phiên live
+                            </a>
+                            <a href="/scripts"  class="nav-link text-white page-dir active">
+                                <i class="fas fa-file-alt"></i> Template script
+                            </a>
+                            <a href="/avatars" class="nav-link text-white page-dir">
+                                <i class="fas fa-user"></i> Quản lý avatar
+                            </a>
+                        </nav>
+                    </div>
+                </div>
+                
+
+                <!-- Main Content -->
+                <div class="col-md-9 col-lg-10 main-content">
+                    <div class="container-fluid p-4">
+                        <!-- Templates Tab -->
+                        <div
+                            id="templates-tab"
+                            class="tab-content"
+                        >
+                            <div
+                                class="d-flex justify-content-between align-items-center mb-4"
+                            >
+                                <h2>
+                                    <i class="fas fa-file-alt"></i> Template
+                                    script
+                                </h2>
+                                <button
+                                    class="btn btn-primary"
+                                    onclick="showAddTemplateModal()"
+                                >
+                                    <i class="fas fa-plus"></i> Thêm template
+                                </button>
+                            </div>
+                            <div class="card">
+                                <div class="card-body">
+                                    <div id="templates-list"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+        <script src="static/scripts.js"></script>
+    </body>
+</html>

@@ -9,7 +9,7 @@ from fastapi import (
 )
 from typing import List
 from pathlib import Path
-import asyncio
+import gc
 
 from ..database import get_db, AvatarDatabaseService
 from ..models import (
@@ -26,81 +26,6 @@ logger = logging.getLogger(__name__)
 
 ####################################
 router = APIRouter(prefix="/avatars", tags=["avatars"])
-
-
-# Avatar endpoints
-# @router.get("")
-async def get_available_avatars():
-    """Get list of available avatar videos from both local and MuseTalk directories"""
-    avatar_files = []
-    video_extensions = {".mp4", ".avi", ".mov", ".mkv", ".webm"}
-    image_extensions = {".png", ".jpg", ".jpeg"}
-
-    # 1. Check local avatars directory
-    local_avatars_dir = Path("static/avatars")
-    local_avatars_dir.mkdir(exist_ok=True)
-
-    for file_path in local_avatars_dir.iterdir():
-        if file_path.is_file() and file_path.suffix.lower() in video_extensions:
-            avatar_files.append(
-                {
-                    "name": f"Local: {file_path.stem}",
-                    "filename": file_path.name,
-                    "path": f"/static/avatars/{file_path.name}",
-                    "size": file_path.stat().st_size,
-                    "source": "local",
-                    "type": "video",
-                }
-            )
-
-    # 2. Check MuseTalk video avatars directory
-    musetalk_video_dir = Path("../MuseTalk/data/video")
-    if musetalk_video_dir.exists():
-        for file_path in musetalk_video_dir.iterdir():
-            if file_path.is_file() and file_path.suffix.lower() in video_extensions:
-                # Use relative path for easier handling
-                relative_path = f"../MuseTalk/data/video/{file_path.name}"
-                avatar_files.append(
-                    {
-                        "name": f"MuseTalk Video: {file_path.stem}",
-                        "filename": file_path.name,
-                        "path": relative_path,
-                        "size": file_path.stat().st_size,
-                        "source": "musetalk_video",
-                        "type": "video",
-                    }
-                )
-
-    # 3. Check MuseTalk demo images (can be used for image-based avatars)
-    musetalk_demo_dir = Path("../MuseTalk/assets/demo")
-    if musetalk_demo_dir.exists():
-        for demo_folder in musetalk_demo_dir.iterdir():
-            if demo_folder.is_dir():
-                # Look for image files in each demo folder
-                for file_path in demo_folder.iterdir():
-                    if (
-                        file_path.is_file()
-                        and file_path.suffix.lower() in image_extensions
-                    ):
-                        # Use relative path for easier handling
-                        relative_path = f"../MuseTalk/assets/demo/{demo_folder.name}/{file_path.name}"
-                        avatar_files.append(
-                            {
-                                "name": f"MuseTalk Demo: {demo_folder.name}",
-                                "filename": file_path.name,
-                                "path": relative_path,
-                                "size": file_path.stat().st_size,
-                                "source": "musetalk_demo",
-                                "type": "image",
-                            }
-                        )
-                        break  # Only take one image per demo folder
-
-    # Sort by source type and name
-    avatar_files.sort(key=lambda x: (x["source"], x["name"]))
-
-    return {"avatars": avatar_files}
-
 
 @router.post("/upload")
 async def upload_avatar(file: UploadFile = File(...)):
@@ -158,6 +83,21 @@ async def create_avatar(avatar_data: AvatarCreate, db: Session = Depends(get_db)
         avatar = AvatarDatabaseService.get_or_create_avatar(
             db, video_path=avatar_data.video_path, name=avatar_data.name
         )
+        
+        
+        from src.services.musetalk import get_musetalk_realtime_service
+
+        musetalk = get_musetalk_realtime_service()
+        
+        if not avatar.is_prepared:
+            avatar_id = avatar.id
+            video_path = avatar.video_path
+            preparation = not avatar.is_prepared
+            musetalk.prepare_avatar(avatar_id, video_path, preparation)
+            
+            musetalk._avatars.clear()
+            del musetalk._current_avatar
+            del musetalk; gc.collect()
 
         return avatar
     except Exception as e:

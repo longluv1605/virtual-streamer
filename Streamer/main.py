@@ -49,17 +49,19 @@ async def lifespan(app: FastAPI):
         musetalk = get_musetalk_realtime_service()
         
         for avatar in avatars:
-            avatar_id = avatar.id
-            video_path = avatar.video_path
-            preparation = not avatar.is_prepared
-            musetalk.prepare_avatar(avatar_id, video_path, preparation)
+            if not avatar.is_prepared:
+                avatar_id = avatar.id
+                video_path = avatar.video_path
+                preparation = not avatar.is_prepared
+                musetalk.prepare_avatar(avatar_id, video_path, preparation)
+                    
+        musetalk._avatars.clear()
+        del musetalk._current_avatar
+        del musetalk; gc.collect()
         
         # success = True
         if success:
             logger.info("MuseTalk models loaded successfully")
-            musetalk._avatars.clear()
-            del musetalk._current_avatar
-            del musetalk; gc.collect()
         else:
             logger.warning("MuseTalk models failed to load - will use demo mode")
     except Exception as e:
