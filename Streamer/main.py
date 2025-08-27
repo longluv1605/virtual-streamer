@@ -4,12 +4,14 @@ from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from pathlib import Path
+import gc
 
 from src.api import register_routers
 from src.database import (
     create_tables,
     get_db,
     init_sample_data,
+    AvatarDatabaseService,
 )
 
 import logging
@@ -26,17 +28,38 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting Virtual Streamer server...")
 
-    # Initialize database
-    db = next(get_db())
-    init_sample_data(db)
-    db.close()
-
+    try:
+        # Initialize database
+        db = next(get_db())
+        init_sample_data(db)
+        
+        # Get default avatar
+        avatars = AvatarDatabaseService.get_default_avatars(db)
+    
+        db.close()
+    except:
+        pass
+    
     # Initialize MuseTalk models (optional, only if needed)
     try:
-        from src.services.musetalk import initialize_musetalk_on_startup
+        from src.services.musetalk import initialize_musetalk_on_startup, get_musetalk_realtime_service
 
         logger.info("Initializing MuseTalk models...")
         success = initialize_musetalk_on_startup()
+        musetalk = get_musetalk_realtime_service()
+        
+        for avatar in avatars:
+            if not avatar.is_prepared:
+                avatar_id = avatar.id
+                video_path = avatar.video_path
+                preparation = not avatar.is_prepared
+                musetalk.prepare_avatar(avatar_id, video_path, preparation)
+                    
+        musetalk._avatars.clear()
+        del musetalk._current_avatar
+        del musetalk; gc.collect()
+        
+        # success = True
         if success:
             logger.info("MuseTalk models loaded successfully")
         else:
@@ -98,6 +121,17 @@ async def read_root():
 async def admin_dashboard():
     return FileResponse("static/admin.html")
 
+@app.get("/sessions", response_class=HTMLResponse)
+async def admin_dashboard():
+    return FileResponse("static/sessions.html")
+
+@app.get("/avatars", response_class=HTMLResponse)
+async def admin_dashboard():
+    return FileResponse("static/avatars.html")
+
+@app.get("/scripts", response_class=HTMLResponse)
+async def admin_dashboard():
+    return FileResponse("static/scripts.html")
 
 @app.get("/products", response_class=HTMLResponse)
 async def products_page():

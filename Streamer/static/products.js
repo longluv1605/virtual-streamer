@@ -142,7 +142,7 @@ function displayProducts(products) {
                         ${
                             productImageUrl
                                 ? `
-                            <img src="${productImageUrl}" class="card-img-top" alt="${productName}" style="height: 200px; object-fit: cover;">
+                            <img src="${productImageUrl}" class="card-img-top" alt="${productName}" style="height: 200px; object-fit: contain;">
                         `
                                 : `
                             <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">

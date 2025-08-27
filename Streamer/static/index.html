@@ -12,54 +12,10 @@
             href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
             rel="stylesheet"
         />
-        <style>
-            body {
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                min-height: 100vh;
-                font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-            }
-            .hero-section {
-                padding: 100px 0;
-                text-align: center;
-                color: white;
-            }
-            .feature-card {
-                background: rgba(255, 255, 255, 0.1);
-                backdrop-filter: blur(10px);
-                border: 1px solid rgba(255, 255, 255, 0.2);
-                border-radius: 15px;
-                padding: 30px;
-                margin-bottom: 30px;
-                transition: transform 0.3s ease;
-            }
-            .feature-card:hover {
-                transform: translateY(-10px);
-            }
-            .btn-custom {
-                background: linear-gradient(45deg, #ff6b6b, #ee5a24);
-                border: none;
-                padding: 15px 30px;
-                font-size: 18px;
-                border-radius: 25px;
-                color: white;
-                text-decoration: none;
-                display: inline-block;
-                transition: all 0.3s ease;
-            }
-            .btn-custom:hover {
-                transform: translateY(-3px);
-                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-                color: white;
-            }
-            .stats-card {
-                background: rgba(255, 255, 255, 0.15);
-                backdrop-filter: blur(10px);
-                border-radius: 10px;
-                padding: 20px;
-                text-align: center;
-                margin-bottom: 20px;
-            }
-        </style>
+        <link
+            href="/static/style.css"
+            rel="stylesheet"
+        />
     </head>
     <body>
         <!-- Navigation -->
@@ -356,62 +312,62 @@
             // Load live sessions
             async function loadLiveSessions() {
                 try {
-                    const response = await fetch(`${API_BASE}/sessions/`);
-                    const sessions = await response.json();
+                //     const response = await fetch(`${API_BASE}/sessions/`);
+                //     const sessions = await response.json();
 
-                    const liveSessionsContainer =
-                        document.getElementById("liveSessions");
-                    const liveSessions = sessions.filter(
-                        (s) => s.status === "live" || s.status === "ready"
-                    );
+                //     const liveSessionsContainer =
+                //         document.getElementById("liveSessions");
+                //     const liveSessions = sessions.filter(
+                //         (s) => s.status === "live" || s.status === "ready"
+                //     );
 
-                    if (liveSessions.length === 0) {
-                        liveSessionsContainer.innerHTML = `
-                        <div class="col-12">
-                            <div class="feature-card text-white text-center">
-                                <i class="fas fa-info-circle fa-2x mb-3"></i>
-                                <h5>Chưa có phiên live nào</h5>
-                                <p>Hãy tạo phiên live đầu tiên trong Admin Dashboard!</p>
-                                <a href="/admin" class="btn btn-primary">
-                                    <i class="fas fa-plus"></i> Tạo phiên live
-                                </a>
-                            </div>
-                        </div>
-                    `;
-                        return;
-                    }
+                //     if (liveSessions.length === 0) {
+                //         liveSessionsContainer.innerHTML = `
+                //         <div class="col-12">
+                //             <div class="feature-card text-white text-center">
+                //                 <i class="fas fa-info-circle fa-2x mb-3"></i>
+                //                 <h5>Chưa có phiên live nào</h5>
+                //                 <p>Hãy tạo phiên live đầu tiên trong Admin Dashboard!</p>
+                //                 <a href="/admin" class="btn btn-primary">
+                //                     <i class="fas fa-plus"></i> Tạo phiên live
+                //                 </a>
+                //             </div>
+                //         </div>
+                //     `;
+                //         return;
+                //     }
 
-                    const html = liveSessions
-                        .map(
-                            (session) => `
-                    <div class="col-lg-6 mb-4">
-                        <div class="feature-card text-white">
-                            <div class="d-flex justify-content-between align-items-start mb-3">
-                                <h5>${session.title}</h5>
-                                <span class="badge ${getStatusBadgeClass(
-                                    session.status
-                                )}">${getStatusText(session.status)}</span>
-                            </div>
-                            <p>${session.description || "Không có mô tả"}</p>
-                            <div class="d-flex justify-content-between align-items-center">
-                                <small class="text-muted">Tạo: ${formatDate(
-                                    session.created_at
-                                )}</small>
-                                ${
-                                    session.status === "live"
-                                        ? `<a href="/live/${session.id}" class="btn btn-success btn-sm" target="_blank">
-                                        <i class="fas fa-play"></i> Xem live
-                                    </a>`
-                                        : `<span class="text-muted">Chưa bắt đầu</span>`
-                                }
-                            </div>
-                        </div>
-                    </div>
-                `
-                        )
-                        .join("");
+                //     const html = liveSessions
+                //         .map(
+                //             (session) => `
+                //     <div class="col-lg-6 mb-4">
+                //         <div class="feature-card text-white">
+                //             <div class="d-flex justify-content-between align-items-start mb-3">
+                //                 <h5>${session.title}</h5>
+                //                 <span class="badge ${getStatusBadgeClass(
+                //                     session.status
+                //                 )}">${getStatusText(session.status)}</span>
+                //             </div>
+                //             <p>${session.description || "Không có mô tả"}</p>
+                //             <div class="d-flex justify-content-between align-items-center">
+                //                 <small class="text-muted">Tạo: ${formatDate(
+                //                     session.created_at
+                //                 )}</small>
+                //                 ${
+                //                     session.status === "live"
+                //                         ? `<a href="/live/${session.id}" class="btn btn-success btn-sm" target="_blank">
+                //                         <i class="fas fa-play"></i> Xem live
+                //                     </a>`
+                //                         : `<span class="text-muted">Chưa bắt đầu</span>`
+                //                 }
+                //             </div>
+                //         </div>
+                //     </div>
+                // `
+                //         )
+                //         .join("");
 
-                    liveSessionsContainer.innerHTML = html;
+                //     liveSessionsContainer.innerHTML = html;
                 } catch (error) {
                     console.error("Error loading live sessions:", error);
                 }

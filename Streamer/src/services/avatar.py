@@ -45,22 +45,25 @@ def video2imgs(vid_path, save_path, ext=".png", cut_frame=10000000):
 class Avatar:
     base_path = "../Streamer"
     musetalk_path = "../MuseTalk"
+    active = False
 
     def __init__(
         self,
         avatar_id,
         video_path,
-        preparation,
+        preparation=False,
         bbox_shift=0,
         version="v15",
         extra_margin=10,
         parsing_mode="jaw",
         audio_padding_length_left=2,
         audio_padding_length_right=2, 
-        target_width=480, 
-        fps=25, 
-        bitrate_kbps=500
+        compress=False,
+        compress_resolution=None, 
+        compress_fps=None, 
+        compress_bitrate=None
     ):
+        video_path = self.base_path + video_path
         self.version = version
         self.extra_margin = extra_margin
         self.parsing_mode = parsing_mode
@@ -83,7 +86,10 @@ class Avatar:
         self.avatar_info_path = f"{self.avatar_path}/avator_info.json"
         
         # Preprocessing video
-        self._preprocess_avatar_video(target_width, fps, bitrate_kbps)
+        if compress:
+            if not compress_resolution or not compress_fps or not compress_bitrate:
+                raise ValueError("Compress is required but missing attribute!")
+            self._preprocess_avatar_video(compress_resolution, compress_fps, compress_bitrate)
         
         self.avatar_info = {
             "avatar_id": avatar_id,
@@ -137,33 +143,37 @@ class Avatar:
             os.chdir(musetalk_abs_path)
             if musetalk_abs_path not in sys.path:
                 sys.path.insert(0, musetalk_abs_path)
-
-            if self.preparation:
-                self._create_avatar(fp, vae)
-            else:
-                if not os.path.exists(self.avatar_path):
-                    logger.warning(
-                        f"Avatar path for {self.avatar_id} does not exist; forcing re-creation (preparation set False)."
-                    )
-                    self._create_avatar(fp, vae)
-                else:
-                    avatar_info = self._read_avatar_info()
-                    if avatar_info is None:
-                        # Corrupted or unreadable file – rebuild
-                        logger.warning(
-                            f"Avatar info file corrupted/unreadable for {self.avatar_id}; re-creating avatar data."
-                        )
-                        self.preparation = True
+            
+            if not self.active:
+                if self.preparation:
+                    if not os.path.exists(self.avatar_path):
                         self._create_avatar(fp, vae)
-                    elif avatar_info.get("bbox_shift") != self.avatar_info.get("bbox_shift"):
-                        logger.warning("bbox_shift is changed, forcing re-creation.")
+                else:
+                    if not os.path.exists(self.avatar_path):
+                        logger.warning(
+                            f"Avatar path for {self.avatar_id} does not exist; forcing re-creation (preparation set False)."
+                        )
                         self._create_avatar(fp, vae)
                     else:
-                        self._load_avatar()
+                        avatar_info = self._read_avatar_info()
+                        if avatar_info is None:
+                            # Corrupted or unreadable file – rebuild
+                            logger.warning(
+                                f"Avatar info file corrupted/unreadable for {self.avatar_id}; re-creating avatar data."
+                            )
+                            self.preparation = True
+                            self._create_avatar(fp, vae)
+                        elif avatar_info.get("bbox_shift") != self.avatar_info.get("bbox_shift"):
+                            logger.warning("bbox_shift is changed, forcing re-creation.")
+                            self._create_avatar(fp, vae)
+                        else:
+                            self._load_avatar()
                         
             self.preparation = False
+            self.active = True
             # Restore working directory
             os.chdir(original_cwd)
+            self._update_avatar_status(is_prepared=True)
             return True
 
         except Exception as e:
@@ -192,7 +202,6 @@ class Avatar:
             ]
         )
         self._prepare_material(fp, vae)
-        self._update_avatar_status(is_prepared=True)
 
     def _read_avatar_info(self):
         try:
