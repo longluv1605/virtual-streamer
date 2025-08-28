@@ -1,0 +1,56 @@
+/* Admin */
+.sidebar {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+.main-content {
+    background-color: #f8f9fa;
+}
+.card {
+    border: none;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    transition: all 0.3s ease;
+}
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+.product-card {
+    border-left: 4px solid #28a745;
+}
+.session-card {
+    border-left: 4px solid #007bff;
+}
+.status-badge {
+    font-size: 0.8rem;
+}
+.loading {
+    display: none;
+}
+.video-preview {
+    max-width: 200px;
+    max-height: 150px;
+    object-fit: cover;
+}
+.streaming-settings {
+    background: linear-gradient(135deg, #f8f9ff 0%, #e6f3ff 100%);
+    border: 1px solid #d0e8ff;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+.streaming-settings:hover {
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15);
+}
+.streaming-settings .form-label {
+    font-weight: 600;
+    color: #0056b3;
+}
+.streaming-settings i {
+    margin-right: 5px;
+}
+.form-check-label {
+    font-weight: 500;
+}
+.form-text {
+    font-size: 0.75rem;
+}

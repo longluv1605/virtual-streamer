@@ -23,7 +23,6 @@ document.addEventListener("DOMContentLoaded", function () {
     loadDashboard();
 });
 
-
 // Dashboard functions
 async function loadDashboard() {
     try {

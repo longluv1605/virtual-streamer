@@ -19,7 +19,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // initWebSocket();
     loadTemplates();
-    displayTemplates()
+    displayTemplates();
 });
 
 // Template functions

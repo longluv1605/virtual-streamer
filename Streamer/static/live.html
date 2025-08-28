@@ -12,12 +12,9 @@
             href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
             rel="stylesheet"
         />
-        <link
-            href="/static/style.css"
-            rel="stylesheet"
-        />
+        <link href="/static/live.css" rel="stylesheet" />
     </head>
-    <body>
+    <body class="live-body">
         <div class="container-fluid p-3">
             <div class="row">
                 <!-- Main Video Area -->
@@ -58,12 +55,14 @@
 
                     <!-- Video Container -->
                     <div class="video-container">
-                        <video id="videoPlayer"
+                        <video
+                            id="videoPlayer"
                             class="video-player"
                             autoplay
                             muted
-                            playsinline>
-                            <source src="" type="video/mp4">
+                            playsinline
+                        >
+                            <source src="" type="video/mp4" />
                             Trình duyệt không hỗ trợ video.
                         </video>
                         <div class="video-overlay" id="videoOverlay">
@@ -84,13 +83,16 @@
                                     id="currentProductImage"
                                     src=""
                                     class="img-fluid rounded"
-                                    style="max-height: 80px; object-fit: cover;"
+                                    style="max-height: 80px; object-fit: cover"
                                     alt=""
                                 />
                             </div>
                             <div class="col-md-10">
                                 <h5 id="currentProductName"></h5>
-                                <p id="currentProductDescription" class="mb-2"></p>
+                                <p
+                                    id="currentProductDescription"
+                                    class="mb-2"
+                                ></p>
                                 <div
                                     class="d-flex justify-content-between align-items-center"
                                 >
@@ -139,8 +141,8 @@
 
                 <!-- Chat Sidebar -->
                 <!-- <div class="col-lg-4"> -->
-                    <!-- Q&A Management Panel (only shown for admin/host) -->
-                    <!-- <div
+                <!-- Q&A Management Panel (only shown for admin/host) -->
+                <!-- <div
                         class="card bg-dark mb-3"
                         id="qaPanel"
                         style="display: none"
@@ -164,7 +166,7 @@
                             </div>
                         </div>
                     </div> -->
-<!-- 
+                <!-- 
                     <div class="chat-container">
                         <div class="border-bottom p-3">
                             <h5>

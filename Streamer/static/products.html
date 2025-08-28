@@ -12,10 +12,8 @@
             href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
             rel="stylesheet"
         />
-        <link
-            href="static/style.css"
-            rel="stylesheet"
-        />
+        <link href="static/product.css" rel="stylesheet" />
+        <link href="static/style.css" rel="stylesheet" />
     </head>
     <body class="bg-light">
         <!-- <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
@@ -35,44 +33,71 @@
                 <div class="col-md-3 col-lg-2 sidebar text-white p-0">
                     <div class="p-3">
                         <h4 class="home">
-                            <a href="/" class="text-white text-decoration-none page-dir">
+                            <a
+                                href="/"
+                                class="text-white text-decoration-none page-dir"
+                            >
                                 <i class="fas fa-video"></i> Virtual Streamer
                             </a>
                         </h4>
                         <hr />
                         <nav class="nav flex-column">
-                            <a href="/admin"    class="nav-link text-white page-dir">
+                            <a
+                                href="/admin"
+                                class="nav-link text-white page-dir"
+                            >
                                 <i class="fas fa-tachometer-alt"></i> Dashboard
                             </a>
-                            <a href="/products" class="nav-link text-white page-dir active">
+                            <a
+                                href="/products"
+                                class="nav-link text-white page-dir active"
+                            >
                                 <i class="fas fa-box"></i> Quản lý sản phẩm
                             </a>
-                            <a href="/sessions" class="nav-link text-white page-dir">
-                                <i class="fas fa-broadcast-tower"></i> Phiên live
+                            <a
+                                href="/sessions"
+                                class="nav-link text-white page-dir"
+                            >
+                                <i class="fas fa-broadcast-tower"></i> Phiên
+                                live
                             </a>
-                            <a href="/scripts"  class="nav-link text-white page-dir">
+                            <a
+                                href="/scripts"
+                                class="nav-link text-white page-dir"
+                            >
                                 <i class="fas fa-file-alt"></i> Template script
                             </a>
-                            <a href="/avatars" class="nav-link text-white page-dir">
+                            <a
+                                href="/avatars"
+                                class="nav-link text-white page-dir"
+                            >
                                 <i class="fas fa-user"></i> Quản lý avatar
                             </a>
                         </nav>
                     </div>
                 </div>
-                
+
                 <!-- Main content -->
                 <div class="col-md-9 col-lg-10 main-content">
                     <div class="container-fluid p-4">
                         <!-- Header & Stats -->
                         <div class="row mb-4">
                             <div class="col-md-8">
-                                <h1><i class="fas fa-box"></i> Quản lý Sản phẩm</h1>
+                                <h1>
+                                    <i class="fas fa-box"></i> Quản lý Sản phẩm
+                                </h1>
                             </div>
                             <div class="col-md-4 text-end">
-                                <button class="btn btn-primary" onclick="showCreateModal()">
+                                <button
+                                    class="btn btn-primary"
+                                    onclick="showCreateModal()"
+                                >
                                     <i class="fas fa-plus"></i> Thêm sản phẩm
                                 </button>
-                                <button class="btn btn-info" onclick="loadStats()">
+                                <button
+                                    class="btn btn-info"
+                                    onclick="loadStats()"
+                                >
                                     <i class="fas fa-chart-bar"></i> Thống kê
                                 </button>
                             </div>
@@ -91,8 +116,13 @@
                                         />
                                     </div>
                                     <div class="col-md-2">
-                                        <select class="form-select" id="categoryFilter">
-                                            <option value="">Tất cả danh mục</option>
+                                        <select
+                                            class="form-select"
+                                            id="categoryFilter"
+                                        >
+                                            <option value="">
+                                                Tất cả danh mục
+                                            </option>
                                         </select>
                                     </div>
                                     <div class="col-md-2">
@@ -145,7 +175,10 @@
 
                         <!-- Pagination -->
                         <nav aria-label="Product pagination">
-                            <ul class="pagination justify-content-center" id="pagination">
+                            <ul
+                                class="pagination justify-content-center"
+                                id="pagination"
+                            >
                                 <!-- Pagination will be generated here -->
                             </ul>
                         </nav>

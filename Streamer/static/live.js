@@ -53,28 +53,27 @@ async function loadSession() {
             fetch(`${API_BASE}/sessions/${sessionId}`),
             fetch(`${API_BASE}/sessions/${sessionId}/products`),
         ]);
-        
+
         if (!sessionRes.ok) {
             throw new Error("Session not found");
         }
-        
+
         currentSession = await sessionRes.json();
-        console.log("Loaded session:", currentSession)
+        console.log("Loaded session:", currentSession);
         sessionProducts = await productsRes.json();
-        console.log("Loaded products:", sessionProducts)
+        console.log("Loaded products:", sessionProducts);
         waitDuration = currentSession.wait_duration * 1000;
 
         if (currentSession.status === "live") {
-            console.log("Starting live....")
-            // ensureRealtimeAndWebRTC(); 
-            initProductStreaming()
+            console.log("Starting live....");
+            // ensureRealtimeAndWebRTC();
+            initProductStreaming();
         }
     } catch (error) {
         console.error("Error loading session:", error);
         showNotification("error", "Không tìm thấy phiên live");
     }
 }
-
 
 function updateCurrentProductInfo(streamProduct) {
     const product = streamProduct.product;
@@ -183,7 +182,6 @@ async function startWebRTC(sessionId, fps = 25) {
     window._pc = pc;
 }
 
-
 // ------------------------------------------------------------
 // New product streaming classes and functions
 // ------------------------------------------------------------
@@ -212,19 +210,15 @@ class AudioPlayer {
             audio.preload = "auto";
             audio.autoplay = false;
             audio.muted = false;
-            audio.loop = false
+            audio.loop = false;
             // Wait until audio is ready to play through
             await new Promise((resolve, reject) => {
-                audio.addEventListener(
-                    "canplaythrough",
-                    () => resolve(true),
-                    { once: true }
-                );
-                audio.addEventListener(
-                    "error",
-                    (e) => reject(e),
-                    { once: true }
-                );
+                audio.addEventListener("canplaythrough", () => resolve(true), {
+                    once: true,
+                });
+                audio.addEventListener("error", (e) => reject(e), {
+                    once: true,
+                });
             });
             this.audio = audio;
             return true;
@@ -272,7 +266,10 @@ class VideoAudioSync {
         this.syncInterval = setInterval(() => this.performSync(), 100);
     }
     setupFrameCallback() {
-        if (!this.videoEl || typeof this.videoEl.requestVideoFrameCallback !== "function") {
+        if (
+            !this.videoEl ||
+            typeof this.videoEl.requestVideoFrameCallback !== "function"
+        ) {
             return;
         }
         const cb = (now, metadata) => {
@@ -288,20 +285,20 @@ class VideoAudioSync {
     performSync() {
         // Wait until audio is loaded
         if (!this.audioPlayer || !this.audioPlayer.audio) return;
-        
+
         const relativeFrames = this.presentedFrames - this.baselineFrames;
         const videoTime = relativeFrames / this.fps;
-        
+
         if (this.presentedFrames % 50 == 0) {
-            console.log("==================================")
-            console.log("Base frame = ", this.baselineFrames)
+            console.log("==================================");
+            console.log("Base frame = ", this.baselineFrames);
             console.log("Presented frame = ", this.presentedFrames);
-            console.log("Relative frame = ", relativeFrames)
-            console.log("Video time = ", videoTime)
+            console.log("Relative frame = ", relativeFrames);
+            console.log("Video time = ", videoTime);
         }
         // Condition 1: start audio after first frame has been displayed
         if (!this.audioPlayer.autoStarted && this.presentedFrames > 0) {
-            console.log("Starting Sync...")
+            console.log("Starting Sync...");
             this.audioPlayer.autoStarted = true;
             this.audioPlayer.play();
             return;
@@ -358,7 +355,7 @@ async function startProductStream(productId) {
         return;
     }
     try {
-        product = sessionProducts[currentProductIndex]
+        product = sessionProducts[currentProductIndex];
         // Update current product info
         updateCurrentProductInfo(product);
         // Update next product preview
@@ -431,12 +428,16 @@ async function pollGenerationStatus() {
 
             // Advance to next product
             currentProductIndex++;
-            if (sessionProducts && currentProductIndex < sessionProducts.length) {
+            if (
+                sessionProducts &&
+                currentProductIndex < sessionProducts.length
+            ) {
                 const nextProduct = sessionProducts[currentProductIndex];
                 // product object may have id or product_id field
-                const nextId = nextProduct.id || nextProduct.product_id || nextProduct._id;
+                const nextId =
+                    nextProduct.id || nextProduct.product_id || nextProduct._id;
                 if (nextId) {
-                    await new Promise(r => setTimeout(r, waitDuration));
+                    await new Promise((r) => setTimeout(r, waitDuration));
                     startProductStream(nextId);
                 }
             } else {

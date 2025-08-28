@@ -15,7 +15,7 @@
             rel="stylesheet"
         />
         <!-- Custom styles -->
-        <link rel="stylesheet" href="/static/style.css">
+        <link rel="stylesheet" href="/static/style.css" />
     </head>
     <body>
         <div class="container-fluid">
@@ -24,25 +24,44 @@
                 <div class="col-md-3 col-lg-2 sidebar text-white p-0">
                     <div class="p-3">
                         <h4 class="home">
-                            <a href="/" class="text-white text-decoration-none page-dir">
+                            <a
+                                href="/"
+                                class="text-white text-decoration-none page-dir"
+                            >
                                 <i class="fas fa-video"></i> Virtual Streamer
                             </a>
                         </h4>
                         <hr />
                         <nav class="nav flex-column">
-                            <a href="/admin" class="nav-link text-white page-dir">
+                            <a
+                                href="/admin"
+                                class="nav-link text-white page-dir"
+                            >
                                 <i class="fas fa-tachometer-alt"></i> Dashboard
                             </a>
-                            <a href="/products" class="nav-link text-white page-dir">
+                            <a
+                                href="/products"
+                                class="nav-link text-white page-dir"
+                            >
                                 <i class="fas fa-box"></i> Quản lý sản phẩm
                             </a>
-                            <a href="/sessions" class="nav-link text-white page-dir">
-                                <i class="fas fa-broadcast-tower"></i> Phiên live
+                            <a
+                                href="/sessions"
+                                class="nav-link text-white page-dir"
+                            >
+                                <i class="fas fa-broadcast-tower"></i> Phiên
+                                live
                             </a>
-                            <a href="/scripts" class="nav-link text-white page-dir">
+                            <a
+                                href="/scripts"
+                                class="nav-link text-white page-dir"
+                            >
                                 <i class="fas fa-file-alt"></i> Template script
                             </a>
-                            <a href="/avatars" class="nav-link text-white page-dir active">
+                            <a
+                                href="/avatars"
+                                class="nav-link text-white page-dir active"
+                            >
                                 <i class="fas fa-user"></i> Quản lý avatar
                             </a>
                         </nav>
@@ -54,11 +73,16 @@
                     <div class="container-fluid p-4">
                         <!-- Avatars Tab -->
                         <div id="avatars-tab" class="tab-content">
-                            <div class="d-flex justify-content-between align-items-center mb-4">
+                            <div
+                                class="d-flex justify-content-between align-items-center mb-4"
+                            >
                                 <h2>
                                     <i class="fas fa-user"></i> Quản lý avatar
                                 </h2>
-                                <button class="btn btn-primary" onclick="showCreateAvatarModal()">
+                                <button
+                                    class="btn btn-primary"
+                                    onclick="showCreateAvatarModal()"
+                                >
                                     <i class="fas fa-plus"></i> Tạo avatar mới
                                 </button>
                             </div>
@@ -81,29 +105,67 @@
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">Tạo avatar mới</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        <button
+                            type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"
+                        ></button>
                     </div>
                     <div class="modal-body">
                         <form id="createAvatarForm">
                             <div class="mb-3">
-                                <label for="avatarName" class="form-label">Tên avatar</label>
-                                <input type="text" class="form-control" id="avatarName" required />
+                                <label for="avatarName" class="form-label"
+                                    >Tên avatar</label
+                                >
+                                <input
+                                    type="text"
+                                    class="form-control"
+                                    id="avatarName"
+                                    required
+                                />
                             </div>
                             <div class="mb-3">
-                                <label for="avatarFile" class="form-label">Video avatar</label>
-                                <input type="file" class="form-control" id="avatarFile" accept="video/*" required />
-                                <small class="form-text text-muted">Chỉ chấp nhận định dạng video (.mp4, .avi, .mov, .mkv, .webm).</small>
+                                <label for="avatarFile" class="form-label"
+                                    >Video avatar</label
+                                >
+                                <input
+                                    type="file"
+                                    class="form-control"
+                                    id="avatarFile"
+                                    accept="video/*"
+                                    required
+                                />
+                                <small class="form-text text-muted"
+                                    >Chỉ chấp nhận định dạng video (.mp4, .avi,
+                                    .mov, .mkv, .webm).</small
+                                >
                             </div>
                             <!-- Compress toggle -->
                             <div class="mb-3 form-check">
-                                <input type="checkbox" class="form-check-input" id="avatarCompress" />
-                                <label class="form-check-label" for="avatarCompress">Nén video (compress)</label>
+                                <input
+                                    type="checkbox"
+                                    class="form-check-input"
+                                    id="avatarCompress"
+                                />
+                                <label
+                                    class="form-check-label"
+                                    for="avatarCompress"
+                                    >Nén video (compress)</label
+                                >
                             </div>
                             <!-- Compress options; hidden by default and shown when compress is checked -->
-                            <div id="compressOptions" class="mb-3" style="display: none;">
+                            <div
+                                id="compressOptions"
+                                class="mb-3"
+                                style="display: none"
+                            >
                                 <div class="row g-3">
                                     <div class="col-md-4">
-                                        <label for="compressFPS" class="form-label">FPS sau nén</label>
+                                        <label
+                                            for="compressFPS"
+                                            class="form-label"
+                                            >FPS sau nén</label
+                                        >
                                         <input
                                             type="number"
                                             class="form-control"
@@ -113,7 +175,11 @@
                                         />
                                     </div>
                                     <div class="col-md-4">
-                                        <label for="compressResolution" class="form-label">Độ phân giải sau nén (px)</label>
+                                        <label
+                                            for="compressResolution"
+                                            class="form-label"
+                                            >Độ phân giải sau nén (px)</label
+                                        >
                                         <input
                                             type="number"
                                             class="form-control"
@@ -123,7 +189,11 @@
                                         />
                                     </div>
                                     <div class="col-md-4">
-                                        <label for="compressBitrate" class="form-label">Bitrate sau nén (kbps)</label>
+                                        <label
+                                            for="compressBitrate"
+                                            class="form-label"
+                                            >Bitrate sau nén (kbps)</label
+                                        >
                                         <input
                                             type="number"
                                             class="form-control"
@@ -137,15 +207,32 @@
                         </form>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
-                        <button type="button" class="btn btn-primary" onclick="createAvatar()">Tạo avatar</button>
+                        <button
+                            type="button"
+                            class="btn btn-secondary"
+                            data-bs-dismiss="modal"
+                        >
+                            Hủy
+                        </button>
+                        <button
+                            type="button"
+                            class="btn btn-primary"
+                            onclick="createAvatar()"
+                        >
+                            Tạo avatar
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Loading Modal -->
-        <div class="modal fade" id="loadingModal" tabindex="-1" data-bs-backdrop="static">
+        <div
+            class="modal fade"
+            id="loadingModal"
+            tabindex="-1"
+            data-bs-backdrop="static"
+        >
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
                     <div class="modal-body text-center">
