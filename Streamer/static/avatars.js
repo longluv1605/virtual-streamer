@@ -63,7 +63,9 @@ function displayAvatars() {
                             ></video>
                         </div>
                         <div class="card-body text-center">
-                            <h5 class="card-title mb-2">${avatar.name || "Avatar"}</h5>
+                            <h5 class="card-title mb-2">${
+                                avatar.name || "Avatar"
+                            }</h5>
                         </div>
                     </div>
                 </div>
@@ -148,11 +150,14 @@ async function createAvatar() {
             payload.compress = true;
             // Read compression parameters
             const fpsValue = document.getElementById("compressFPS")?.value;
-            const resValue = document.getElementById("compressResolution")?.value;
-            const bitrateValue = document.getElementById("compressBitrate")?.value;
+            const resValue =
+                document.getElementById("compressResolution")?.value;
+            const bitrateValue =
+                document.getElementById("compressBitrate")?.value;
             if (fpsValue) payload.compress_fps = parseInt(fpsValue, 10);
             if (resValue) payload.compress_resolution = parseInt(resValue, 10);
-            if (bitrateValue) payload.compress_bitrate = parseInt(bitrateValue, 10);
+            if (bitrateValue)
+                payload.compress_bitrate = parseInt(bitrateValue, 10);
         }
 
         const createResp = await fetch(`${API_BASE}/avatars`, {

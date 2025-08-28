@@ -609,9 +609,7 @@ function showVideoPreview(videoPath) {
     // Find avatar info
     const avatar = availableAvatars.find((a) => a.path === videoPath);
     if (avatar) {
-        info.textContent = `${avatar.name} (${formatFileSize(
-            avatar.size
-        )})`;
+        info.textContent = `${avatar.name} (${formatFileSize(avatar.size)})`;
     } else {
         info.textContent = "Video preview";
     }
