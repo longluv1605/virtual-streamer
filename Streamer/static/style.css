@@ -20,3 +20,36 @@
 .page-dir.active {
   background: rgba(255,255,255,.1); /* trạng thái active rõ ràng trên nền tối */
 }
+
+/* Loading Modal Custom Style */
+#loadingModal .modal-dialog {
+    max-width: 400px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+}
+
+#loadingModal .modal-content {
+    border-radius: 10px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+    background: #fff;
+    color: #222;
+    padding: 32px 16px;
+    font-size: 1.25rem;
+    font-weight: 500;
+    border: 5px solid #1976d2;
+}
+
+#loadingModal .spinner-border {
+    width: 3rem;
+    height: 3rem;
+}
+
+#loadingMessage {
+    margin-top: 24px;
+    font-size: 1.2rem;
+    color: #222;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}

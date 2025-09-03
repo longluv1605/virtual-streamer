@@ -12,6 +12,7 @@
             href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
             rel="stylesheet"
         />
+        <link href="/static/style.css" rel="stylesheet" />
         <link href="/static/live.css" rel="stylesheet" />
     </head>
     <body>
@@ -141,121 +142,111 @@
 
                 <!-- Chat Sidebar -->
                 <div class="col-lg-4">
-                    Q&A Management Panel (only shown for admin/host)
-                    <div
-                        class="card bg-dark mb-3"
-                        id="qaPanel"
-                        style="display: none"
-                    >
-                        <div class="card-header">
-                            <h6 class="mb-0">
-                                <i class="fas fa-question-circle"></i>
-                                Quản lý câu hỏi
-                                <span
-                                    class="badge bg-warning ms-2"
-                                    id="questionCount"
-                                    >0</span
-                                >
-                            </h6>
-                        </div>
-                        <div
-                            class="card-body p-2"
-                            style="max-height: 300px; overflow-y: auto"
-                        >
-                            <div id="unansweredQuestions">
-                            </div>
-                        </div>
-                    </div>
-                
-                    <div class="chat-container">
-                        <div class="border-bottom p-3">
-                            <h5>
+                    <div class="chat-container card shadow-sm mb-3">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">
                                 <i class="fas fa-comments"></i> Chat trực tiếp
                             </h5>
-                            <small class="text-muted"
-                                >Hỏi đáp về sản phẩm</small
+                            <small class="text-white-50"
+                                >Từ người xem trên nền tảng</small
                             >
                         </div>
-
-                        <div class="chat-messages" id="chatMessages">
-                        </div>
-
-                        <div class="chat-input">
-                            <form id="chatForm">
-                                <div class="input-group">
-                                    <input
-                                        type="text"
-                                        id="usernameInput"
-                                        class="form-control form-control-sm"
-                                        placeholder="Tên của bạn"
-                                        style="max-width: 120px"
-                                    />
-                                    <input
-                                        type="text"
-                                        id="messageInput"
-                                        class="form-control"
-                                        placeholder="Nhập tin nhắn..."
-                                    />
-                                    <button
-                                        class="btn btn-primary"
-                                        type="submit"
-                                    >
-                                        <i class="fas fa-paper-plane"></i>
-                                    </button>
-                                </div>
-                                <div class="form-check form-check-inline mt-2">
-                                    <input
-                                        class="form-check-input"
-                                        type="checkbox"
-                                        id="isQuestionCheck"
-                                    />
-                                    <label
-                                        class="form-check-label"
-                                        for="isQuestionCheck"
-                                    >
-                                        <small>Đây là câu hỏi</small>
-                                    </label>
-                                </div>
-                            </form>
+                        <div
+                            class="card-body chat-messages"
+                            id="chatMessages"
+                            style="max-height: 400px; overflow-y: auto"
+                        >
+                            <!-- Tin nhắn sẽ được render ở đây -->
                         </div>
                     </div>
-                </div> 
+                </div>
             </div>
         </div>
 
         <!-- Live Setup Modal -->
-        <div class="modal fade" id="liveSetupModal" tabindex="-1" aria-hidden="true">
+        <div
+            class="modal fade"
+            id="liveSetupModal"
+            tabindex="-1"
+            aria-hidden="true"
+        >
             <div class="modal-dialog">
                 <div class="modal-content bg-white text-dark">
                     <div class="modal-header">
                         <h5 class="modal-title">Thiết lập phiên live</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
                     </div>
 
-                <form id="liveSetupForm" novalidate>
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label for="platformSelect" class="form-label">Nền tảng</label>
-                            <select class="form-select" id="platformSelect" required>
-                            <option value="">-- Chọn nền tảng --</option>
-                            <option value="youtube">YouTube</option>
-                            <option value="tiktok">TikTok</option>
-                            </select>
-                            <div class="invalid-feedback">Vui lòng chọn nền tảng.</div>
+                    <form id="liveSetupForm" novalidate>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label for="platformSelect" class="form-label"
+                                    >Nền tảng</label
+                                >
+                                <select
+                                    class="form-select"
+                                    id="platformSelect"
+                                    required
+                                >
+                                    <option value="">
+                                        -- Chọn nền tảng --
+                                    </option>
+                                    <option value="youtube">YouTube</option>
+                                    <option value="tiktok">TikTok</option>
+                                </select>
+                                <div class="invalid-feedback">
+                                    Vui lòng chọn nền tảng.
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="liveIdInput" class="form-label"
+                                    >ID live</label
+                                >
+                                <input
+                                    type="text"
+                                    class="form-control"
+                                    id="liveIdInput"
+                                    placeholder="Nhập ID live"
+                                    required
+                                />
+                                <div class="invalid-feedback">
+                                    Vui lòng nhập ID live.
+                                </div>
+                            </div>
                         </div>
 
-                        <div class="mb-3">
-                            <label for="liveIdInput" class="form-label">ID live</label>
-                            <input type="text" class="form-control" id="liveIdInput" placeholder="Nhập ID live" required>
-                            <div class="invalid-feedback">Vui lòng nhập ID live.</div>
+                        <div class="modal-footer">
+                            <button
+                                type="button"
+                                class="btn btn-outline-secondary"
+                                data-bs-dismiss="modal"
+                            >
+                                Hủy
+                            </button>
+                            <button type="submit" class="btn btn-primary">
+                                Bắt đầu
+                            </button>
                         </div>
-                    </div>
+                    </form>
+                </div>
+            </div>
+        </div>
 
-                    <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
-                    <button type="submit" class="btn btn-primary">Bắt đầu</button>
+        <!-- Loading Modal -->
+        <div
+            class="modal fade"
+            id="loadingModal"
+            tabindex="-1"
+            data-bs-backdrop="static"
+        >
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content bg-white text-dark">
+                    <div class="modal-body text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-3" id="loadingMessage">Đang xử lý...</p>
                     </div>
-                </form>
                 </div>
             </div>
         </div>
