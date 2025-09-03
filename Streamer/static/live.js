@@ -15,15 +15,20 @@ let comments = [];
 let isAdmin = false; // In real app, this would be determined by authentication
 let waitDuration = 0;
 
-// Q&A Management Variables
-// let unansweredQuestions = [];
-// let pendingQuestions = []; // Questions waiting to be auto-answered
-// let isPlayingAnswerVideo = false; // Flag to prevent multiple answer videos
+let liveConfig = null;
 
-// Initialize app
+// ==== KHỞI TẠO ====
+// Hiện modal ngay khi vào trang, chưa khởi động websocket/session vội
 document.addEventListener("DOMContentLoaded", function () {
-    initWebSocket();
-    loadSession();
+    showLiveSetupModal({
+        onSubmit: (cfg) => {
+            // Lưu lại để chỗ khác dùng
+            liveConfig = cfg;
+
+            // initWebSocket(); // nếu cần truyền cfg
+            // loadSession(); // hoặc startLive(liveConfig) tuỳ flow của bạn
+        },
+    });
 });
 
 // WebSocket functions
@@ -66,7 +71,7 @@ async function loadSession() {
 
         if (currentSession.status === "live") {
             console.log("Starting live....");
-            // ensureRealtimeAndWebRTC();
+            updateSessionInfo();
             initProductStreaming();
         }
     } catch (error) {
@@ -75,60 +80,8 @@ async function loadSession() {
     }
 }
 
-function updateCurrentProductInfo(streamProduct) {
-    const product = streamProduct.product;
-    const container = document.getElementById("currentProductInfo");
-
-    document.getElementById("currentProductName").textContent = product.name;
-    document.getElementById("currentProductDescription").textContent =
-        product.description || "Không có mô tả";
-    document.getElementById("currentProductPrice").textContent =
-        formatPrice(product.price) + " VNĐ";
-    document.getElementById(
-        "currentProductStock"
-    ).textContent = `${product.stock_quantity} còn lại`;
-
-    if (product.image_url) {
-        document.getElementById("currentProductImage").src = product.image_url;
-        document.getElementById("currentProductImage").style.display = "block";
-    } else {
-        document.getElementById("currentProductImage").style.display = "none";
-    }
-
-    container.style.display = "block";
-}
-
-function updateNextProductInfo(nextIndex) {
-    const container = document.getElementById("nextProductInfo");
-
-    if (nextIndex >= sessionProducts.length) {
-        container.style.display = "none";
-        return;
-    }
-
-    const nextProduct = sessionProducts[nextIndex].product;
-
-    document.getElementById("nextProductName").textContent = nextProduct.name;
-    document.getElementById("nextProductPrice").textContent =
-        formatPrice(nextProduct.price) + " VNĐ";
-
-    if (nextProduct.image_url) {
-        document.getElementById("nextProductImage").src = nextProduct.image_url;
-    } else {
-        document.getElementById("nextProductImage").src =
-            'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 60 60"><rect width="60" height="60" fill="%23ddd"/><text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="%23999">No Image</text></svg>';
-    }
-
-    container.style.display = "block";
-}
-
-// Utility functions
-function formatPrice(price) {
-    return new Intl.NumberFormat("vi-VN").format(price);
-}
-
 // WebRTC
-async function startWebRTC(sessionId, fps = 25) {
+async function startWebRTC(sessionId, fps=25) {
     if (window._webrtcStarted) return;
     const pc = new RTCPeerConnection();
 
@@ -447,4 +400,273 @@ async function pollGenerationStatus() {
     } catch (err) {
         console.error("pollGenerationStatus error", err);
     }
+}
+
+function updateCurrentProductInfo(streamProduct) {
+    const product = streamProduct.product;
+    const container = document.getElementById("currentProductInfo");
+
+    document.getElementById("currentProductName").textContent = product.name;
+    document.getElementById("currentProductDescription").textContent =
+        product.description || "Không có mô tả";
+    document.getElementById("currentProductPrice").textContent =
+        formatPrice(product.price) + " VNĐ";
+    document.getElementById(
+        "currentProductStock"
+    ).textContent = `${product.stock_quantity} còn lại`;
+
+    if (product.image_url) {
+        document.getElementById("currentProductImage").src = product.image_url;
+        document.getElementById("currentProductImage").style.display = "block";
+    } else {
+        document.getElementById("currentProductImage").style.display = "none";
+    }
+
+    container.style.display = "block";
+}
+
+function updateNextProductInfo(nextIndex) {
+    const container = document.getElementById("nextProductInfo");
+
+    if (nextIndex >= sessionProducts.length) {
+        container.style.display = "none";
+        return;
+    }
+
+    const nextProduct = sessionProducts[nextIndex].product;
+
+    document.getElementById("nextProductName").textContent = nextProduct.name;
+    document.getElementById("nextProductPrice").textContent =
+        formatPrice(nextProduct.price) + " VNĐ";
+
+    if (nextProduct.image_url) {
+        document.getElementById("nextProductImage").src = nextProduct.image_url;
+    } else {
+        document.getElementById("nextProductImage").src =
+            'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 60 60"><rect width="60" height="60" fill="%23ddd"/><text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="%23999">No Image</text></svg>';
+    }
+
+    container.style.display = "block";
+}
+
+// Utility functions
+function formatPrice(price) {
+    return new Intl.NumberFormat("vi-VN").format(price);
+}
+
+function updateSessionInfo() {
+    document.getElementById("sessionTitle").textContent = currentSession.title;
+
+    const statusIndicator = document.getElementById("statusIndicator");
+    const statusText = document.getElementById("statusText");
+
+    statusIndicator.className = "status-indicator";
+
+    switch (currentSession.status) {
+        case "preparing":
+            statusIndicator.classList.add("status-preparing");
+            statusText.textContent = "Đang chuẩn bị";
+            break;
+        case "ready":
+            statusIndicator.classList.add("status-ready");
+            statusText.textContent = "Sẵn sàng";
+            break;
+        case "live":
+            statusIndicator.classList.add("status-live");
+            statusText.textContent = "ĐANG LIVE";
+            break;
+        case "completed":
+            statusIndicator.classList.add("status-ready");
+            statusText.textContent = "Đã hoàn thành";
+            break;
+        default:
+            statusText.textContent = currentSession.status;
+    }
+}
+
+
+/////////////////////////////////////// Hủy setup
+document.getElementById("liveSetupModal").addEventListener("shown.bs.modal", function () {
+    const cancelBtn = document.querySelector("#liveSetupModal .btn-outline-secondary");
+    if (cancelBtn) {
+        cancelBtn.onclick = function () {
+            window.location.href = "/sessions"; // hoặc window.close() nếu là popup
+        };
+    }
+});
+
+// ==== HÀM HIỆN & XỬ LÝ MODAL ====
+function showLiveSetupModal({ onSubmit }) {
+    const modalEl = document.getElementById("liveSetupModal");
+    const form = document.getElementById("liveSetupForm");
+    const platform = document.getElementById("platformSelect");
+    const liveId = document.getElementById("liveIdInput");
+
+    const modal = new bootstrap.Modal(modalEl, {
+        backdrop: "static",
+        keyboard: false,
+    });
+
+    // Fetch platforms and render options
+    fetchPlatforms().then(platforms => {
+        platform.innerHTML = '<option value="">-- Chọn nền tảng --</option>';
+        platforms.forEach(p => {
+            const opt = document.createElement("option");
+            opt.value = p;
+            opt.textContent = p.charAt(0).toUpperCase() + p.slice(1);
+            platform.appendChild(opt);
+        });
+        modal.show();
+    });
+
+    // Xóa trạng thái invalid khi user chỉnh
+    platform.addEventListener("change", () =>
+        platform.classList.remove("is-invalid")
+    );
+    liveId.addEventListener("input", () =>
+        liveId.classList.remove("is-invalid")
+    );
+
+    // Check configuration
+    checkLiveConfig(modal, onSubmit, form, platform, liveId);
+}
+
+// Lấy các nền tảng hiện có
+async function fetchPlatforms() {
+    try {
+        const res = await fetch("/api/chat/platforms");
+        if (!res.ok) return [];
+        const data = await res.json();
+        return data.platforms || [];
+    } catch {
+        return [];
+    }
+}
+
+// Check input
+function checkLiveConfig(modal, onSubmit, form, platform, liveId) {
+    form.addEventListener("submit", async function (e) {
+        e.preventDefault();
+        let ok = true;
+
+        if (!platform.value) {
+            platform.classList.add("is-invalid");
+            ok = false;
+        }
+        if (!liveId.value.trim()) {
+            liveId.classList.add("is-invalid");
+            ok = false;
+        }
+        if (!ok) return;
+
+        const cfg = {
+            platform: platform.value,
+            live_id: liveId.value.trim(),
+        };
+
+        // Chờ validate trả về kết quả
+        platform = cfg.platform.charAt(0).toUpperCase() + cfg.platform.slice(1);
+        showLoading(`Đang kết nối tới nền tảng ${platform}...`);
+        const valid = await startLiveChat(cfg);
+        hideLoading();
+        if (!valid) return;
+
+        // Đóng modal trước khi bắt đầu live
+        modal.hide();
+        startChatPolling()
+
+        // Callback để khởi động websocket/session sau khi pass validate
+        if (typeof onSubmit === "function") onSubmit(cfg);
+    });
+}
+
+// Kết nối vào nền tảng
+async function startLiveChat(config) {
+    const res = await fetch("/api/chat/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(config),
+    });
+    if (!res.ok) {
+        const err = await res.json();
+        showNotification("error", err.detail || "Không thể bắt đầu phiên live.");
+        return false;
+    }
+    showNotification("info", "Bắt đầu phiên live thành công!");
+    return true;
+}
+
+function showLoading(message = "Đang xử lý...") {
+    document.getElementById("loadingMessage").textContent = message;
+    new bootstrap.Modal(document.getElementById("loadingModal")).show();
+}
+
+function hideLoading() {
+    const modal = bootstrap.Modal.getInstance(
+        document.getElementById("loadingModal")
+    );
+    if (modal) {
+        modal.hide();
+    }
+}
+
+function showNotification(type, message) {
+    // Create notification element
+    const notification = document.createElement("div");
+    notification.className = `alert alert-${
+        type === "error" ? "danger" : type
+    } alert-dismissible fade show position-fixed`;
+    notification.style.cssText =
+        "top: 20px; right: 20px; z-index: 9999; min-width: 300px;";
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    document.body.appendChild(notification);
+
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+        }
+    }, 5000);
+}
+
+// Live chat
+let displayedComments = [];
+
+function renderComment(comment) {
+    const time = new Date(comment.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    return `
+        <div class="chat-message mb-2">
+            <strong class="text-primary">${comment.author}</strong>
+            <span class="text-muted ms-2" style="font-size:0.85em">${time}</span>
+            <div>${comment.message}</div>
+        </div>
+    `;
+}
+
+function appendChatMessages(comments) {
+    const chatMessages = document.getElementById("chatMessages");
+    // Lọc các comment mới chưa hiển thị
+    const newComments = comments.filter(c => !displayedComments.some(dc => dc.id === c.id));
+    if (newComments.length > 0) {
+        chatMessages.innerHTML += newComments.map(renderComment).join("");
+        displayedComments = displayedComments.concat(newComments);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+}
+
+// Poll comment sau khi kết nối thành công
+let chatPolling = null;
+function startChatPolling() {
+    if (chatPolling) return;
+    chatPolling = setInterval(async () => {
+        const res = await fetch("/api/chat/comments");
+        if (res.ok) {
+            const data = await res.json();
+            appendChatMessages(data.comments || []);
+        }
+    }, 2000);
 }

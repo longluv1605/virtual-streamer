@@ -7,6 +7,7 @@ from .product import Product, ProductCreate, ProductUpdate, ProductResponse, Pro
 from .stream_session import StreamSession, StreamProduct, StreamSessionCreate, StreamSessionResponse, StreamProductResponse
 from .template import ScriptTemplate, ScriptTemplateCreate, ScriptTemplateResponse
 from .webrtc import Offer
+from .chat import ChatConnectRequest
 
 __all__ = [
     # Base
@@ -41,4 +42,6 @@ __all__ = [
     "StreamSessionResponse", 
     "StreamProductResponse", 
     "ScriptTemplateResponse",
+    
+    "ChatConnectRequest",
 ]
