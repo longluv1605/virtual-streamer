@@ -6,6 +6,7 @@ from .avatar import router as avatar_router
 from .template import router as template_router
 from .websocket import router as websocket_router
 from .webrtc import router as webrtc_router
+from .chat import router as chat_router
 
 def register_routers(app: FastAPI, api_prefix: str = "/api"):
     app.include_router(session_router, prefix=api_prefix)
@@ -15,3 +16,4 @@ def register_routers(app: FastAPI, api_prefix: str = "/api"):
     app.include_router(template_router, prefix=api_prefix)
     app.include_router(websocket_router, prefix="")
     app.include_router(webrtc_router, prefix=api_prefix)
+    app.include_router(chat_router, prefix=api_prefix)

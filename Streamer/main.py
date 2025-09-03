@@ -42,24 +42,24 @@ async def lifespan(app: FastAPI):
     
     # Initialize MuseTalk models (optional, only if needed)
     try:
-        from src.services.musetalk import initialize_musetalk_on_startup, get_musetalk_realtime_service
+        # from src.services.musetalk import initialize_musetalk_on_startup, get_musetalk_realtime_service
 
-        logger.info("Initializing MuseTalk models...")
-        success = initialize_musetalk_on_startup()
-        musetalk = get_musetalk_realtime_service()
+        # logger.info("Initializing MuseTalk models...")
+        # success = initialize_musetalk_on_startup()
+        # musetalk = get_musetalk_realtime_service()
         
-        for avatar in avatars:
-            if not avatar.is_prepared:
-                avatar_id = avatar.id
-                video_path = avatar.video_path
-                preparation = not avatar.is_prepared
-                musetalk.prepare_avatar(avatar_id, video_path, preparation)
+        # for avatar in avatars:
+        #     if not avatar.is_prepared:
+        #         avatar_id = avatar.id
+        #         video_path = avatar.video_path
+        #         preparation = not avatar.is_prepared
+        #         musetalk.prepare_avatar(avatar_id, video_path, preparation)
                     
-        musetalk._avatars.clear()
-        del musetalk._current_avatar
-        del musetalk; gc.collect()
+        # musetalk._avatars.clear()
+        # del musetalk._current_avatar
+        # del musetalk; gc.collect()
         
-        # success = True
+        success = True
         if success:
             logger.info("MuseTalk models loaded successfully")
         else:

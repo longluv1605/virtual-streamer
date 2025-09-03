@@ -15,16 +15,107 @@ let comments = [];
 let isAdmin = false; // In real app, this would be determined by authentication
 let waitDuration = 0;
 
-// Q&A Management Variables
-// let unansweredQuestions = [];
-// let pendingQuestions = []; // Questions waiting to be auto-answered
-// let isPlayingAnswerVideo = false; // Flag to prevent multiple answer videos
+let liveConfig = null;
 
-// Initialize app
+// ==== KHỞI TẠO ====
+// Hiện modal ngay khi vào trang, chưa khởi động websocket/session vội
 document.addEventListener("DOMContentLoaded", function () {
-    initWebSocket();
-    loadSession();
+    showLiveSetupModal({
+        onSubmit: (cfg) => {
+            // Lưu lại để chỗ khác dùng
+            liveConfig = cfg;
+
+            // initWebSocket(); // nếu cần truyền cfg
+            // loadSession(); // hoặc startLive(liveConfig) tuỳ flow của bạn
+        },
+    });
 });
+
+// ==== HÀM HIỆN & XỬ LÝ MODAL ====
+function showLiveSetupModal({ onSubmit }) {
+    const modalEl = document.getElementById("liveSetupModal");
+    const form = document.getElementById("liveSetupForm");
+    const platform = document.getElementById("platformSelect");
+    const liveId = document.getElementById("liveIdInput");
+
+    const modal = new bootstrap.Modal(modalEl, {
+        backdrop: "static",
+        keyboard: false,
+    });
+
+    // Hiện modal ngay khi vào trang
+    modal.show();
+
+    // Xóa trạng thái invalid khi user chỉnh
+    platform.addEventListener("change", () =>
+        platform.classList.remove("is-invalid")
+    );
+    liveId.addEventListener("input", () =>
+        liveId.classList.remove("is-invalid")
+    );
+
+    // Check configuration
+    checkLiveConfig(modal, onSubmit, form, platform, liveId);
+}
+
+function checkLiveConfig(modal, onSubmit, form, platform, liveId) {
+    form.addEventListener("submit", async function (e) {
+        e.preventDefault();
+        let ok = true;
+
+        if (!platform.value) {
+            platform.classList.add("is-invalid");
+            ok = false;
+        }
+        if (!liveId.value.trim()) {
+            liveId.classList.add("is-invalid");
+            ok = false;
+        }
+        if (!ok) return;
+
+        const cfg = {
+            platform: platform.value, // 'youtube' | 'tiktok'
+            live_id: liveId.value.trim(),
+        };
+
+        // Chờ validate trả về kết quả
+        const valid = await validateChat(cfg);
+        if (!valid) return;
+
+        // Đóng modal trước khi bắt đầu live
+        modal.hide();
+
+        // Callback để khởi động websocket/session sau khi pass validate
+        if (typeof onSubmit === "function") onSubmit(cfg);
+    });
+}
+
+async function validateChat(config) {
+    const { platform, live_id } = config;
+    try {
+        const res = await fetch("/api/chat/validate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(config),
+        });
+        if (!res.ok) {
+            showNotification("error", "Không thể xác thực phiên live.");
+            console.log(res);
+            return false;
+        }
+        const result = await res.json();
+        if (!result) {
+            showNotification("error", "Phiên live không hợp lệ.");
+            return false;
+        }
+        showNotification("info", "Xác thực phiên live thành công.");
+        return true;
+    } catch (err) {
+        showNotification("error", "Lỗi kết nối máy chủ.");
+        return false;
+    }
+    return true;
+}
 
 // WebSocket functions
 function initWebSocket() {
@@ -66,7 +157,7 @@ async function loadSession() {
 
         if (currentSession.status === "live") {
             console.log("Starting live....");
-            // ensureRealtimeAndWebRTC();
+            updateSessionInfo();
             initProductStreaming();
         }
     } catch (error) {
@@ -75,60 +166,31 @@ async function loadSession() {
     }
 }
 
-function updateCurrentProductInfo(streamProduct) {
-    const product = streamProduct.product;
-    const container = document.getElementById("currentProductInfo");
+function showNotification(type, message) {
+    // Create notification element
+    const notification = document.createElement("div");
+    notification.className = `alert alert-${
+        type === "error" ? "danger" : type
+    } alert-dismissible fade show position-fixed`;
+    notification.style.cssText =
+        "top: 20px; right: 20px; z-index: 9999; min-width: 300px;";
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
 
-    document.getElementById("currentProductName").textContent = product.name;
-    document.getElementById("currentProductDescription").textContent =
-        product.description || "Không có mô tả";
-    document.getElementById("currentProductPrice").textContent =
-        formatPrice(product.price) + " VNĐ";
-    document.getElementById(
-        "currentProductStock"
-    ).textContent = `${product.stock_quantity} còn lại`;
+    document.body.appendChild(notification);
 
-    if (product.image_url) {
-        document.getElementById("currentProductImage").src = product.image_url;
-        document.getElementById("currentProductImage").style.display = "block";
-    } else {
-        document.getElementById("currentProductImage").style.display = "none";
-    }
-
-    container.style.display = "block";
-}
-
-function updateNextProductInfo(nextIndex) {
-    const container = document.getElementById("nextProductInfo");
-
-    if (nextIndex >= sessionProducts.length) {
-        container.style.display = "none";
-        return;
-    }
-
-    const nextProduct = sessionProducts[nextIndex].product;
-
-    document.getElementById("nextProductName").textContent = nextProduct.name;
-    document.getElementById("nextProductPrice").textContent =
-        formatPrice(nextProduct.price) + " VNĐ";
-
-    if (nextProduct.image_url) {
-        document.getElementById("nextProductImage").src = nextProduct.image_url;
-    } else {
-        document.getElementById("nextProductImage").src =
-            'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 60 60"><rect width="60" height="60" fill="%23ddd"/><text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="%23999">No Image</text></svg>';
-    }
-
-    container.style.display = "block";
-}
-
-// Utility functions
-function formatPrice(price) {
-    return new Intl.NumberFormat("vi-VN").format(price);
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+        }
+    }, 5000);
 }
 
 // WebRTC
-async function startWebRTC(sessionId, fps = 25) {
+async function startWebRTC(sessionId, fps=25) {
     if (window._webrtcStarted) return;
     const pc = new RTCPeerConnection();
 
@@ -446,5 +508,87 @@ async function pollGenerationStatus() {
         }
     } catch (err) {
         console.error("pollGenerationStatus error", err);
+    }
+}
+
+function updateCurrentProductInfo(streamProduct) {
+    const product = streamProduct.product;
+    const container = document.getElementById("currentProductInfo");
+
+    document.getElementById("currentProductName").textContent = product.name;
+    document.getElementById("currentProductDescription").textContent =
+        product.description || "Không có mô tả";
+    document.getElementById("currentProductPrice").textContent =
+        formatPrice(product.price) + " VNĐ";
+    document.getElementById(
+        "currentProductStock"
+    ).textContent = `${product.stock_quantity} còn lại`;
+
+    if (product.image_url) {
+        document.getElementById("currentProductImage").src = product.image_url;
+        document.getElementById("currentProductImage").style.display = "block";
+    } else {
+        document.getElementById("currentProductImage").style.display = "none";
+    }
+
+    container.style.display = "block";
+}
+
+function updateNextProductInfo(nextIndex) {
+    const container = document.getElementById("nextProductInfo");
+
+    if (nextIndex >= sessionProducts.length) {
+        container.style.display = "none";
+        return;
+    }
+
+    const nextProduct = sessionProducts[nextIndex].product;
+
+    document.getElementById("nextProductName").textContent = nextProduct.name;
+    document.getElementById("nextProductPrice").textContent =
+        formatPrice(nextProduct.price) + " VNĐ";
+
+    if (nextProduct.image_url) {
+        document.getElementById("nextProductImage").src = nextProduct.image_url;
+    } else {
+        document.getElementById("nextProductImage").src =
+            'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 60 60"><rect width="60" height="60" fill="%23ddd"/><text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="%23999">No Image</text></svg>';
+    }
+
+    container.style.display = "block";
+}
+
+// Utility functions
+function formatPrice(price) {
+    return new Intl.NumberFormat("vi-VN").format(price);
+}
+
+function updateSessionInfo() {
+    document.getElementById("sessionTitle").textContent = currentSession.title;
+
+    const statusIndicator = document.getElementById("statusIndicator");
+    const statusText = document.getElementById("statusText");
+
+    statusIndicator.className = "status-indicator";
+
+    switch (currentSession.status) {
+        case "preparing":
+            statusIndicator.classList.add("status-preparing");
+            statusText.textContent = "Đang chuẩn bị";
+            break;
+        case "ready":
+            statusIndicator.classList.add("status-ready");
+            statusText.textContent = "Sẵn sàng";
+            break;
+        case "live":
+            statusIndicator.classList.add("status-live");
+            statusText.textContent = "ĐANG LIVE";
+            break;
+        case "completed":
+            statusIndicator.classList.add("status-ready");
+            statusText.textContent = "Đã hoàn thành";
+            break;
+        default:
+            statusText.textContent = currentSession.status;
     }
 }
