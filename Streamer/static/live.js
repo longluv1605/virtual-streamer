@@ -25,7 +25,7 @@ document.addEventListener("DOMContentLoaded", function () {
             // Lưu lại để chỗ khác dùng
             liveConfig = cfg;
 
-            // initWebSocket(); // nếu cần truyền cfg
+            initWebSocket(); // nếu cần truyền cfg
             // loadSession(); // hoặc startLive(liveConfig) tuỳ flow của bạn
         },
     });
@@ -34,7 +34,7 @@ document.addEventListener("DOMContentLoaded", function () {
 // WebSocket functions
 function initWebSocket() {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+    ws = new WebSocket(`${protocol}//${window.location.host}/ws/chat`);
 
     ws.onopen = function () {
         console.log("WebSocket connected");
@@ -42,6 +42,7 @@ function initWebSocket() {
 
     ws.onmessage = function (event) {
         const data = JSON.parse(event.data);
+        console.log("Data ws: ", data.comment);
         handleWebSocketMessage(data);
     };
 
@@ -49,6 +50,17 @@ function initWebSocket() {
         console.log("WebSocket disconnected");
         setTimeout(initWebSocket, 3000);
     };
+}
+
+function handleWebSocketMessage(data) {
+    switch (data.type) {
+        case "live_comment":
+            // cập nhật danh sách comment ở giao diện
+            console.log("Comment ws: ", data.comment);
+            comments.push(data.comment);
+            appendChatMessages(comments);
+            break;
+    }
 }
 
 // Session functions
@@ -573,7 +585,7 @@ function checkLiveConfig(modal, onSubmit, form, platform, liveId) {
 
         // Đóng modal trước khi bắt đầu live
         modal.hide();
-        startChatPolling()
+        // startChatPolling()
 
         // Callback để khởi động websocket/session sau khi pass validate
         if (typeof onSubmit === "function") onSubmit(cfg);
