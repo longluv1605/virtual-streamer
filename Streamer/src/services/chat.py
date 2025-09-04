@@ -6,6 +6,8 @@ import asyncio
 import time
 import datetime
 import logging
+from ..api._manager import connection_manager
+import json
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] <%(name)s:%(lineno)d> - %(message)s")
 logger = logging.getLogger(__name__)
@@ -135,6 +137,23 @@ class YouTubeChatHandler(ChatHandler):
                         self.comment_queue.append(comment_data)
                         logger.info(f"YouTube Comment [{c.author.name}]: {c.message}")
                         
+                        try:
+                            # push cho client websocket
+                            logger.info("Sending comments through websocket...")
+                            target_loop = getattr(connection_manager, "loop", None)
+                            if not target_loop:
+                                logger.warning("connection_manager.loop not set; broadcast may fail. Please set it on FastAPI startup.")
+                                target_loop = asyncio.get_event_loop()
+                            asyncio.run_coroutine_threadsafe(
+                                connection_manager.broadcast(
+                                    json.dumps({"type": "live_comment", "comment": comment_data})
+                                ),
+                                target_loop
+                            )
+                            logger.info("Sent comments through websocket...")
+                        except Exception as e:
+                            logger.error(f"Error while sending comments through websocket: {e}")
+                            raise e
                 except Exception as e:
                     logger.error(f"Error processing YouTube comments: {e}")
                     time.sleep(1)
@@ -236,7 +255,25 @@ class TikTokChatHandler(ChatHandler):
                     comment_data['id'] = comment_data["author"] + comment_data["timestamp"]
                     self.comment_queue.append(comment_data)
                     logger.info(f"TikTok Comment [{event.user.nickname}]: {event.comment}")
-                    
+                        
+                    try:
+                        # push cho client websocket
+                        logger.info("Sending comments through websocket...")
+                        target_loop = getattr(connection_manager, "loop", None)
+                        if not target_loop:
+                            logger.warning("connection_manager.loop not set; broadcast may fail. Please set it on FastAPI startup.")
+                            target_loop = asyncio.get_event_loop()
+                        asyncio.run_coroutine_threadsafe(
+                            connection_manager.broadcast(
+                                json.dumps({"type": "live_comment", "comment": comment_data})
+                            ),
+                            target_loop
+                        )
+                        logger.info("Sent comments through websocket...")
+                    except Exception as e:
+                        logger.error(f"Error while sending comments through websocket: {e}")
+                        raise e
+                
                 except Exception as e:
                     logger.error(f"Error processing TikTok comment: {e}")
             

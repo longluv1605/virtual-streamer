@@ -1,3 +1,4 @@
+import asyncio
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from ._manager import connection_manager
 
@@ -12,5 +13,14 @@ async def websocket_endpoint(websocket: WebSocket):
             data = await websocket.receive_text()
             # Handle incoming WebSocket messages if needed
             await connection_manager.send_personal_message(f"Message received: {data}", websocket)
+    except WebSocketDisconnect:
+        connection_manager.disconnect(websocket)
+
+@router.websocket("/chat")
+async def websocket_endpoint(websocket: WebSocket):
+    await connection_manager.connect(websocket)
+    try:
+        while True:
+            await asyncio.sleep(1)
     except WebSocketDisconnect:
         connection_manager.disconnect(websocket)

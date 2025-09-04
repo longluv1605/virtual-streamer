@@ -5,8 +5,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from pathlib import Path
 import gc
+import asyncio
 
 from src.api import register_routers
+from src.api._manager import connection_manager
 from src.database import (
     create_tables,
     get_db,
@@ -27,6 +29,12 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting Virtual Streamer server...")
+    
+    try:
+        connection_manager.loop = asyncio.get_running_loop()
+        logger.info("Set connection_manager.loop to FastAPI event loop")
+    except Exception as e:
+        logger.info(f"Error in set connection manager loop: {e}")
 
     try:
         # Initialize database
@@ -75,6 +83,12 @@ async def lifespan(app: FastAPI):
 # Create FastAPI app
 app = FastAPI(title="Virtual Streamer API", version="1.0.0", lifespan=lifespan)
 register_routers(app)
+
+
+@app.on_event("startup")
+async def _set_connection_manager_loop():
+    connection_manager.loop = asyncio.get_running_loop()
+    logger.info("Set connection_manager.loop to FastAPI event loop")
 
 # Add CORS middleware
 app.add_middleware(
