@@ -22,11 +22,11 @@ let liveConfig = null;
 document.addEventListener("DOMContentLoaded", function () {
     showLiveSetupModal({
         onSubmit: (cfg) => {
-            // Lưu lại để chỗ khác dùng
+            // Lưu lại 
             liveConfig = cfg;
 
-            initWebSocket(); // nếu cần truyền cfg
-            // loadSession(); // hoặc startLive(liveConfig) tuỳ flow của bạn
+            initWebSocket(); 
+            loadSession();
         },
     });
 });
@@ -40,10 +40,10 @@ function initWebSocket() {
         console.log("WebSocket connected");
     };
 
-    ws.onmessage = function (event) {
+    ws.onmessage = async function (event) {
         const data = JSON.parse(event.data);
-        console.log("Data ws: ", data.comment);
-        handleWebSocketMessage(data);
+        console.log("Data ws: ", data);
+        await handleWebSocketMessage(data);
     };
 
     ws.onclose = function () {
@@ -52,7 +52,7 @@ function initWebSocket() {
     };
 }
 
-function handleWebSocketMessage(data) {
+async function handleWebSocketMessage(data) {
     switch (data.type) {
         case "live_comment":
             // cập nhật danh sách comment ở giao diện
@@ -60,6 +60,35 @@ function handleWebSocketMessage(data) {
             comments.push(data.comment);
             appendChatMessages(comments);
             break;
+        
+        case "generate_status":
+            if (data && data.status.is_generating === false) {
+                console.log("Starting next generation...")
+                // Stop current sync controller
+                if (syncController) {
+                    syncController.stop();
+                    syncController = null;
+                }
+                console.log("Closed controller...")
+
+                // Advance to next product
+                currentProductIndex++;
+                if (
+                    sessionProducts &&
+                    currentProductIndex < sessionProducts.length
+                ) { 
+                    console.log("Start...")
+                    const nextProduct = sessionProducts[currentProductIndex];
+                    // Product object may have id or product_id field
+                    const nextId =
+                        nextProduct.id || nextProduct.product_id || nextProduct._id;
+                    if (nextId) {
+                        console.log("Waiting...")
+                        await new Promise((r) => setTimeout(r, waitDuration));
+                        startProductStream(nextId);
+                    }
+                }
+            }
     }
 }
 
@@ -357,13 +386,13 @@ async function startProductStream(productId) {
         syncController = new VideoAudioSync(videoEl, audioPlayer, fps);
         syncController.start();
 
-        // Poll the backend status periodically to detect when generation ends
-        if (productStatusInterval) {
-            clearInterval(productStatusInterval);
-        }
-        productStatusInterval = setInterval(async () => {
-            await pollGenerationStatus();
-        }, 1000);
+        // // Poll the backend status periodically to detect when generation ends
+        // if (productStatusInterval) {
+        //     clearInterval(productStatusInterval);
+        // }
+        // productStatusInterval = setInterval(async () => {
+        //     await pollGenerationStatus();
+        // }, 1000);
     } catch (err) {
         console.error("startProductStream error", err);
     }
@@ -396,9 +425,9 @@ async function pollGenerationStatus() {
             if (
                 sessionProducts &&
                 currentProductIndex < sessionProducts.length
-            ) {
+            ) { 
                 const nextProduct = sessionProducts[currentProductIndex];
-                // product object may have id or product_id field
+                // Product object may have id or product_id field
                 const nextId =
                     nextProduct.id || nextProduct.product_id || nextProduct._id;
                 if (nextId) {
@@ -668,17 +697,4 @@ function appendChatMessages(comments) {
         displayedComments = displayedComments.concat(newComments);
         chatMessages.scrollTop = chatMessages.scrollHeight;
     }
-}
-
-// Poll comment sau khi kết nối thành công
-let chatPolling = null;
-function startChatPolling() {
-    if (chatPolling) return;
-    chatPolling = setInterval(async () => {
-        const res = await fetch("/api/chat/comments");
-        if (res.ok) {
-            const data = await res.json();
-            appendChatMessages(data.comments || []);
-        }
-    }, 2000);
 }

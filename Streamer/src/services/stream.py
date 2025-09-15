@@ -21,16 +21,43 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+import json
+import asyncio
+from ..api._manager import connection_manager
+
+
+def send_status(status):
+    try:
+        # push cho client websocket
+        logger.info("Sending generate status through websocket...")
+        target_loop = getattr(connection_manager, "loop", None)
+        if not target_loop or getattr(target_loop, "is_closed", lambda: True)():
+            logger.warning(
+                "No running event loop available for websocket broadcast; skipping status push."
+            )
+            return
+        asyncio.run_coroutine_threadsafe(
+            connection_manager.broadcast(
+                json.dumps({"type": "generate_status", "status": status})
+            ),
+            target_loop,
+        )
+        logger.info("Sent generate status through websocket...")
+    except Exception as e:
+        logger.error(f"Error while sending generate status through websocket: {e}")
+        # Do not raise; broadcasting failures shouldn't crash callers
+        return
+
 
 class StreamProcessor:
     """Main service to process stream sessions"""
 
     def __init__(self):
-        self.base_dir = Path('../Streamer')
+        self.base_dir = Path("../Streamer")
         self.llm_service = LLMService()
         self.tts_service = TTSService(provider="gtts")
         self.musetalk_service = get_musetalk_realtime_service()
-        
+
         # Track realtime generation status per session.
         # Key: session_id, Value: dict with keys 'is_generating' (bool) and 'product_id' (str or None)
         # This allows the API layer to report whether a product is currently being generated.
@@ -55,7 +82,7 @@ class StreamProcessor:
             if not avatar:
                 logger.warning(f"Avatar not found for session {session_id}")
                 return False
-            try:           
+            try:
                 self.prepare_avatar_for_realtime(session)
                 logger.info("Session's avatar is prepared...")
             except Exception as e:
@@ -135,8 +162,10 @@ class StreamProcessor:
             audio_filename = f"product_{session_id}_{product.id}"
             audio_path = await self.tts_service.text_to_speech(script, audio_filename)
             speedup_audio_path = f"{audio_filename}_speedup.mp3"
-            audio_path = self.tts_service.processing_audio(audio_path, speedup_audio_path, speed_factor=1.25)
-            
+            audio_path = self.tts_service.processing_audio(
+                audio_path, speedup_audio_path, speed_factor=1.25
+            )
+
             # Update database
             update_data = {
                 "script_text": script,
@@ -159,7 +188,6 @@ class StreamProcessor:
                 db_session, stream_product.id, {"is_processed": False}
             )
 
-
     def prepare_avatar_for_realtime(self, session) -> bool:
         """
         Prepare avatar cho realtime streaming - gọi trước khi start session
@@ -177,7 +205,6 @@ class StreamProcessor:
         except Exception as e:
             logger.error(f"Error create avatar: {e}")
             return False
-
 
     # === New realtime methods for per-product generation ===
     async def start_product(self, db: Session, session_id: str, product_id: str):
@@ -203,16 +230,20 @@ class StreamProcessor:
         """
         # Make sure session exists and product belongs to the session
         from src.database import StreamSessionDatabaseService
+
         try:
             logger.info("Starting product live generation...")
             session = StreamSessionDatabaseService.get_session(db, session_id)
-            
+
             if not session:
                 return {"status": "error", "detail": f"Session {session_id} not found"}
             if not self.musetalk_service:
-                return {"status": "error", "detail": f"MuseTalk service is not available"} 
-            
-            try:           
+                return {
+                    "status": "error",
+                    "detail": f"MuseTalk service is not available",
+                }
+
+            try:
                 self.prepare_avatar_for_realtime(session)
                 logger.info("Session's avatar is ready...")
             except Exception as e:
@@ -221,7 +252,10 @@ class StreamProcessor:
 
             # Check if there is an ongoing generation
             if self._realtime_status.get(session_id, {}).get("is_generating"):
-                return {"status": "error", "detail": "Another product is currently generating"}
+                return {
+                    "status": "error",
+                    "detail": "Another product is currently generating",
+                }
 
             # Retrieve the product within this session
             # We use product_id as string; convert to int for lookup
@@ -236,12 +270,18 @@ class StreamProcessor:
                     stream_product = sp
                     break
             if not stream_product:
-                return {"status": "error", "detail": f"Product {product_id} not found in session"}
+                return {
+                    "status": "error",
+                    "detail": f"Product {product_id} not found in session",
+                }
 
             # Ensure audio is available for this product
             audio_path = stream_product.audio_path
             if not audio_path:
-                return {"status": "error", "detail": "No audio available for this product"}
+                return {
+                    "status": "error",
+                    "detail": "No audio available for this product",
+                }
 
             # Get or create WebRTC session
             webrtc_service.ensure_session(session_id)
@@ -252,6 +292,8 @@ class StreamProcessor:
                 "is_generating": True,
                 "product_id": str(pid_int),
             }
+
+            send_status(self._realtime_status[session_id])
 
             # Estimate duration for client (fallback to 30s)
             estimated_duration = 30
@@ -264,18 +306,24 @@ class StreamProcessor:
                     y, sr = librosa.load(abs_audio_path, sr=None)
                     estimated_duration = max(librosa.get_duration(y=y, sr=sr), 10)
             except Exception as e:
-                logger.warning(f"Could not estimate audio duration for product {product_id}: {e}")
+                logger.warning(
+                    f"Could not estimate audio duration for product {product_id}: {e}"
+                )
 
             # Convert audio path to URL
             normalized_path = audio_path.replace("\\", "/")
-            audio_url = normalized_path if normalized_path.startswith("/") else f"/{normalized_path}"
+            audio_url = (
+                normalized_path
+                if normalized_path.startswith("/")
+                else f"/{normalized_path}"
+            )
 
             # Use session fps
             fps = session.stream_fps or 25
             batch_size = session.batch_size or 1
 
             # Start producer thread for this product only
-            def _produce_single():
+            def _produce():
                 try:
                     # Use musetalk realtime service
                     # musetalk_service = get_musetalk_realtime_service()
@@ -288,7 +336,9 @@ class StreamProcessor:
                                 batch_size=batch_size,
                             )
                         except Exception as e:
-                            logger.error(f"Error generating frames for product {product_id}: {e}")
+                            logger.error(
+                                f"Error generating frames for product {product_id}: {e}"
+                            )
                     else:
                         # Fallback: generate dummy frames
                         idx = 0
@@ -309,8 +359,9 @@ class StreamProcessor:
                         "is_generating": False,
                         "product_id": None,
                     }
+                    send_status(self._realtime_status[session_id])
 
-            threading.Thread(target=_produce_single, daemon=True).start()
+            threading.Thread(target=_produce, daemon=True).start()
 
             return {
                 "status": "started",
@@ -319,7 +370,9 @@ class StreamProcessor:
                 "duration": estimated_duration,
             }
         except Exception as e:
-            logger.error(f"Error starting product {product_id} for session {session_id}: {e}")
+            logger.error(
+                f"Error starting product {product_id} for session {session_id}: {e}"
+            )
             # On error, clear status
             self._realtime_status[session_id] = {
                 "is_generating": False,
